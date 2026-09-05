@@ -6,7 +6,7 @@ window.ALDEIA_DATA = {
     address: "Rua Marques de Herval, 3500"
   },
   schedule: [
-    { day: "Segunda a quinta-feira", title: "Trabalhos particulares", text: "Atendimento das 8h às 21h." },
+    { day: "Segunda a quinta-feira", title: "Trabalhos particulares", text: "Das 8h às 21h, somente com horário marcado." },
     { day: "Sexta-feira", title: "Trabalho aberto ao público", text: "A partir das 19h30." }
   ],
   events: [
