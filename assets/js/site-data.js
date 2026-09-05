@@ -16,12 +16,12 @@ window.ALDEIA_DATA = {
     { title: "Portal oficial", text: "Horários, orientações, eventos e comunicados serão publicados aqui." }
   ],
   contact: {
-    whatsapp: "",
+    whatsapp: "6799342405",
     instagram: "",
     message: "Olá! Gostaria de obter informações sobre a Aldeia Tupinambá."
   },
   donation: {
-    pixKey: "",
-    note: "A chave PIX deve ser cadastrada pela administração antes da publicação."
+    pixKey: "04118932113",
+    note: "Ao realizar sua doação, informe a finalidade para que possamos direcionar o recurso corretamente. Exemplo: reforma, velas, charutos, manutenção, festa ou ajuda geral."
   }
 };
