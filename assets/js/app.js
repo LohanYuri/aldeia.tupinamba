@@ -69,57 +69,44 @@
   }
 
   window.convite = () => {
-    if (!event) {
-      toast("Nenhum evento cadastrado.");
-      return;
-    }
-
-    const shareText =
-      event.title + "\n" +
-      event.date + " • " + event.time + "\n" +
-      event.address + " • " + event.city;
-
+    if (!event) { toast("Nenhum evento cadastrado."); return; }
+    const shareText = [
+      "🎉 " + event.title,
+      "📅 " + event.date + " • " + event.time,
+      "📍 " + event.address + " • " + event.city,
+      "",
+      "Doações: doces, refrigerantes, cachorro-quente, balas e pirulitos.",
+      "Aldeia Tupinambá"
+    ].join("\n");
     const ics = [
-      "BEGIN:VCALENDAR",
-      "VERSION:2.0",
-      "PRODID:-//Aldeia Tupinamba//Portal//PT-BR",
-      "CALSCALE:GREGORIAN",
-      "BEGIN:VEVENT",
-      "UID:" + event.id + "@aldeia.tupinamba",
-      "DTSTAMP:20260905T120000Z",
-      "DTSTART:20260926T220000Z",
-      "DTEND:20260927T010000Z",
-      "SUMMARY:" + event.title,
-      "LOCATION:" + event.address + " - " + event.city,
-      "END:VEVENT",
-      "END:VCALENDAR"
+      "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Aldeia Tupinamba//Portal//PT-BR","CALSCALE:GREGORIAN","BEGIN:VEVENT",
+      "UID:" + event.id + "@aldeia.tupinamba","DTSTAMP:20260905T120000Z","DTSTART:20260926T220000Z","DTEND:20260927T010000Z",
+      "SUMMARY:" + event.title,"LOCATION:" + event.address + " - " + event.city,
+      "DESCRIPTION:Doacoes: doces, refrigerantes, cachorro-quente, balas e pirulitos.",
+      "END:VEVENT","END:VCALENDAR"
     ].join("\r\n");
-
     openModal(
-      "<span class='eyebrow'>CONVITE</span>" +
-      "<h2>" + escapeHtml(event.title) + "</h2>" +
-      "<p><strong>" + escapeHtml(event.date) + "</strong> • " + escapeHtml(event.time) + "</p>" +
-      "<p>" + escapeHtml(event.address) + " • " + escapeHtml(event.city) + "</p>" +
+      "<span class='eyebrow'>CONVITE INTERATIVO</span>" +
+      "<h2>🎉 " + escapeHtml(event.title) + "</h2>" +
+      "<p><strong>📅 " + escapeHtml(event.date) + " • " + escapeHtml(event.time) + "</strong></p>" +
+      "<p>📍 " + escapeHtml(event.address) + " • " + escapeHtml(event.city) + "</p>" +
+      "<div class='invite-note'><b>Você é nosso convidado!</b><br>Venha participar com respeito, fé e alegria.</div>" +
+      "<p><small>Doações para a festa: doces, refrigerantes, cachorro-quente, balas e pirulitos.</small></p>" +
       "<div class='modal-actions'>" +
-      "<button class='btn' id='icsBtn' type='button'>Adicionar à agenda</button>" +
-      "<button class='btn secondary' id='shareBtn' type='button'>Compartilhar</button>" +
+      "<button class='btn gold' id='icsBtn' type='button'>📅 Adicionar à agenda</button>" +
+      "<button class='btn outline' id='shareBtn' type='button'>📤 Compartilhar convite</button>" +
+      "<button class='btn outline' id='eventWaBtn' type='button'>📲 Confirmar pelo WhatsApp</button>" +
       "</div>"
     );
-
-    $("#icsBtn")?.addEventListener("click", () => {
-      downloadICS(ics, "festa-cosme-e-damiao-2026.ics");
-    });
-
+    $("#icsBtn")?.addEventListener("click", () => downloadICS(ics, "convite-cosme-e-damiao-2026.ics"));
     $("#shareBtn")?.addEventListener("click", async () => {
-      if (navigator.share) {
-        await navigator.share({
-          title: event.title,
-          text: shareText
-        }).catch(() => {});
-      } else {
-        const ok = await copyText(shareText);
-        toast(ok ? "Convite copiado para a área de transferência." : "Não foi possível copiar o convite.");
-      }
+      if (navigator.share) await navigator.share({title:event.title,text:shareText}).catch(()=>{});
+      else toast((await copyText(shareText)) ? "Convite copiado." : "Não foi possível copiar o convite.");
+    });
+    $("#eventWaBtn")?.addEventListener("click", () => {
+      const target = normalizeWhatsApp(data.contact?.whatsapp);
+      const msg = "Olá! Gostaria de confirmar minha participação na Festa de São Cosme e São Damião da Aldeia Tupinambá em " + event.date + " às " + event.time + ".";
+      if (target) location.href = "https://wa.me/" + target + "?text=" + encodeURIComponent(msg);
     });
   };
 
