@@ -39,7 +39,7 @@
     const ics = [
       "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Aldeia Tupinamba//Portal//PT-BR",
       "BEGIN:VEVENT","UID:" + event.id + "@aldeia.tupinamba",
-      "DTSTAMP:20260905T120000Z","DTSTART:20260926T220000Z","DTEND:20260927T010000Z",
+      "DTSTAMP:20260905T120000Z","DTSTART:20260926T230000Z","DTEND:20260927T020000Z",
       "SUMMARY:" + event.title,"LOCATION:" + event.address + " - " + event.city,
       "END:VEVENT","END:VCALENDAR"
     ].join("\r\n");
@@ -101,9 +101,9 @@
       "Finalidade: " + purpose,
       note ? "Observação: " + note : ""
     ].filter(Boolean).join("\n");
-    const target = data.contact?.whatsapp?.replace(/\D/g, "");
+    const target = normalizeWhatsApp(data.contact?.whatsapp);
     if (!target) { copyText(body); toast("Mensagem de doação copiada."); return; }
-    location.href = "https://wa.me/55" + target + "?text=" + encodeURIComponent(body);
+    location.href = "https://wa.me/" + target + "?text=" + encodeURIComponent(body);
   };
 
   window.sendContact = (form) => {
@@ -116,7 +116,7 @@
     else { copyText(decodeURIComponent(body)); toast("Mensagem copiada."); form.reset(); }
   };
 
-  function escapeHtml(value) {
+  function normalizeWhatsApp(value) {\n    const digits = String(value ?? "").replace(/\\D/g, "");\n    return digits.startsWith("55") ? digits : "55" + digits;\n  }\n\n  function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
   }
 
@@ -145,9 +145,9 @@
       document.querySelectorAll("[data-event-address]").forEach(el => el.textContent = event.address + " • " + event.city);
     }
     document.querySelectorAll("[data-whatsapp]").forEach(el => {
-      const digits = data.contact?.whatsapp?.replace(/\D/g, "");
+      const digits = normalizeWhatsApp(data.contact?.whatsapp);
       if (digits) {
-        el.href = "https://wa.me/55" + digits;
+        el.href = "https://wa.me/" + digits;
         el.textContent = "WhatsApp oficial: (67) 99342-405";
       }
     });
