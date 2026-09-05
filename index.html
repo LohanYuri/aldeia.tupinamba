@@ -86,8 +86,53 @@
 </section>
 
 <section id="doacoes" class="section">
-  <span class="eyebrow">APOIO À CASA</span><h2>Doações</h2><p class="lead">Toda contribuição ajuda na manutenção dos trabalhos e das ações da Aldeia.</p>
-  <div class="donate"><b>DOE VIA PIX</b><span>A chave PIX será exibida somente quando cadastrada pela administração.</span><button class="btn" type="button" onclick="copyDonation()">Copiar chave PIX</button></div>
+  <span class="eyebrow">APOIO À CASA</span><h2>Quero ajudar a Aldeia</h2>
+  <p class="lead">Sua contribuição ajuda a manter a casa e seus trabalhos. Para organizarmos corretamente os recursos, informe para qual finalidade deseja direcionar sua doação.</p>
+
+  <div class="donate donation-panel">
+    <div class="donation-intro">
+      <b>DOE VIA PIX</b>
+      <p data-donation-note>Ao realizar sua doação, informe a finalidade para que possamos direcionar o recurso corretamente.</p>
+    </div>
+
+    <form id="donationForm" class="donation-form" onsubmit="event.preventDefault();donationWhatsApp(this)" aria-label="Informações da doação">
+      <label>Valor da doação
+        <input name="donationValue" type="text" inputmode="decimal" placeholder="Ex.: 50,00" aria-label="Valor da doação">
+      </label>
+
+      <label>Para onde deseja direcionar sua doação?
+        <select name="donationPurpose" required>
+          <option value="">Selecione uma finalidade</option>
+          <option>🏠 Reforma e melhorias da casa</option>
+          <option>🕯️ Velas e materiais religiosos</option>
+          <option>🚬 Charutos e materiais de trabalho</option>
+          <option>🧹 Manutenção e limpeza da casa</option>
+          <option>🎉 Festas e eventos</option>
+          <option>🍬 Cosme e Damião</option>
+          <option>❤️ Ajuda geral para a Aldeia</option>
+          <option>✍️ Outra finalidade</option>
+        </select>
+      </label>
+
+      <label>Observação / finalidade
+        <textarea name="donationNote" rows="3" placeholder="Se escolheu outra finalidade, explique aqui."></textarea>
+      </label>
+
+      <div class="pix-box">
+        <span>CHAVE PIX</span>
+        <strong data-pix-key>04118932113</strong>
+        <button class="btn" type="button" onclick="copyDonation()">📋 Copiar chave PIX</button>
+      </div>
+
+      <p class="donation-help"><b>Importante:</b> depois de realizar o PIX, envie o comprovante pelo WhatsApp oficial da casa e informe a finalidade selecionada.</p>
+
+      <button class="btn donation-whatsapp" type="submit">📲 Informar a doação pelo WhatsApp</button>
+    </form>
+
+    <div class="donation-contact">
+      <a class="btn secondary" data-whatsapp href="https://wa.me/556799342405">WhatsApp oficial: (67) 99342-405</a>
+    </div>
+  </div>
 </section>
 
 <section id="avisos" class="section alt">
@@ -96,7 +141,8 @@
 </section>
 
 <section id="contato" class="section contact">
-  <div><span class="eyebrow">FALE CONOSCO</span><h2>Entre em contato</h2><p class="lead">Prepare sua mensagem. Se o WhatsApp oficial estiver cadastrado, o portal abrirá a conversa; caso contrário, a mensagem será copiada para você.</p>
+  <div><span class="eyebrow">FALE CONOSCO</span><h2>Entre em contato</h2><p class="lead">Fale diretamente com o WhatsApp oficial da casa para tirar dúvidas e receber orientações.</p>
+  <a class="btn" data-whatsapp href="https://wa.me/556799342405">📲 Falar no WhatsApp</a>
   <button class="btn secondary" type="button" data-copy-message>Copiar mensagem padrão</button></div>
   <form onsubmit="event.preventDefault();sendContact(this)" aria-label="Formulário de contato">
     <label>Nome<input name="name" required autocomplete="name" placeholder="Seu nome"></label>
