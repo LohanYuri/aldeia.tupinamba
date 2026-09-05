@@ -16,7 +16,8 @@ window.ALDEIA_DATA = {
     { title: "Portal oficial", text: "Horários, orientações, eventos e comunicados serão publicados aqui." }
   ],
   contact: {
-    whatsapp: "6799342405",
+    whatsapp: "556799342405",
+    whatsappDisplay: "+55 (67) 99342-405",
     instagram: "",
     message: "Olá! Gostaria de obter informações sobre a Aldeia Tupinambá."
   },
