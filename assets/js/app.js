@@ -137,7 +137,7 @@
 
     const body = [
       "Olá! Gostaria de realizar uma doação para a Aldeia Tupinambá.",
-      value ? "Valor: R$ " + value : "Valor: a confirmar",
+      value ? "Valor: R$ " + value : "Valor: R$ ____",
       "Finalidade: " + purpose,
       note ? "Observação: " + note : ""
     ].filter(Boolean).join("\n");
