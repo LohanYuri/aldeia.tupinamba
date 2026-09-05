@@ -86,7 +86,24 @@
   window.copyDonation = async () => {
     const key = data.donation?.pixKey;
     if (!key) { toast("A chave PIX ainda não foi cadastrada pela administração."); return; }
-    await copyText(key); toast("Chave PIX copiada.");
+    const ok = await copyText(key);
+    toast(ok ? "Chave PIX copiada." : "Não foi possível copiar automaticamente.");
+  };
+
+  window.donationWhatsApp = (form) => {
+    const value = form?.querySelector("[name='donationValue']")?.value.trim() || "";
+    const purpose = form?.querySelector("[name='donationPurpose']")?.value.trim() || "";
+    const note = form?.querySelector("[name='donationNote']")?.value.trim() || "";
+    if (!purpose) { toast("Escolha a finalidade da doação."); form?.querySelector("[name='donationPurpose']")?.focus(); return; }
+    const body = [
+      "Olá! Gostaria de realizar uma doação para a Aldeia Tupinambá.",
+      value ? "Valor: R$ " + value : "Valor: a confirmar",
+      "Finalidade: " + purpose,
+      note ? "Observação: " + note : ""
+    ].filter(Boolean).join("\n");
+    const target = data.contact?.whatsapp?.replace(/\D/g, "");
+    if (!target) { copyText(body); toast("Mensagem de doação copiada."); return; }
+    location.href = "https://wa.me/55" + target + "?text=" + encodeURIComponent(body);
   };
 
   window.sendContact = (form) => {
@@ -95,8 +112,8 @@
     const message = form.message.value.trim();
     const body = encodeURIComponent("Nome: " + name + "\nWhatsApp: " + whatsapp + "\n\n" + message);
     const target = data.contact?.whatsapp;
-    if (target) location.href = "https://wa.me/" + target.replace(/\D/g, "") + "?text=" + body;
-    else { copyText(decodeURIComponent(body)); toast("Mensagem copiada. Cadastre o WhatsApp oficial para envio direto."); form.reset(); }
+    if (target) location.href = "https://wa.me/55" + target.replace(/\D/g, "") + "?text=" + body;
+    else { copyText(decodeURIComponent(body)); toast("Mensagem copiada."); form.reset(); }
   };
 
   function escapeHtml(value) {
@@ -127,5 +144,15 @@
       document.querySelectorAll("[data-event-date]").forEach(el => el.textContent = event.date + " • " + event.time);
       document.querySelectorAll("[data-event-address]").forEach(el => el.textContent = event.address + " • " + event.city);
     }
+    document.querySelectorAll("[data-whatsapp]").forEach(el => {
+      const digits = data.contact?.whatsapp?.replace(/\D/g, "");
+      if (digits) {
+        el.href = "https://wa.me/55" + digits;
+        el.textContent = "WhatsApp oficial: (67) 99342-405";
+      }
+    });
+    document.querySelectorAll("[data-pix-key]").forEach(el => el.textContent = data.donation?.pixKey || "PIX não cadastrado");
+    const note = $("[data-donation-note]");
+    if (note) note.textContent = data.donation?.note || "";
   });
 })();
