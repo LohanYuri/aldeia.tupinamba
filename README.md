@@ -1,26 +1,27 @@
-# Aldeia Tupinambá — Projeto final
+# Aldeia Tupinambá — Portal
 
-## O que foi corrigido
-A mensagem/anúncio **“A Aldeia Tupinambá está de cara nova!” não faz parte do site**. Ela é material para divulgação nas redes sociais e foi retirada da estrutura do portal.
+Portal institucional estático da Aldeia Tupinambá, preparado para publicação no GitHub Pages.
 
-## Estrutura do portal
-- Portal público separado do conteúdo interno.
-- A Aldeia / história, missão e valores.
-- Atendimentos e horários.
-- Consultas e trabalhos particulares.
-- Doutrina e fundamentos.
-- Regras da casa.
-- Convites interativos e eventos.
-- Doações.
-- Avisos e novidades.
-- Fale conosco.
-- Área ADM: relatórios, interações, regras, doutrina, convites, doações, filhos e avisos.
-- Área dos Filhos: escala, avisos, cotas/obrigações, termos de ciência e histórico.
-- Interface responsiva para celular.
-- Fachada da Aldeia incluída no portal.
+## Estrutura
+
+- index.html — portal público, agenda, doutrina, regras, eventos, doações e contato.
+- assets/css/style.css — identidade visual e responsividade.
+- assets/js/site-data.js — conteúdo público centralizado para facilitar futuras atualizações.
+- assets/js/app.js — menu, modal de convite, compartilhamento, cópia e geração de arquivo .ics.
+- login-adm.html / adm.html — interface administrativa de demonstração.
+- filhos.html — interface da Área dos Filhos.
+- 404.html / .nojekyll — suporte à publicação no GitHub Pages.
+
+## Evento cadastrado
+
+Festa de São Cosme e São Damião — 26/09/2026 às 19h, Rua Marques de Herval, 3500, Campo Grande/MS.
 
 ## Segurança
-GitHub Pages hospeda arquivos estáticos. Por isso, o login desta entrega é apenas a interface/protótipo. **Não coloque senhas ou dados reais de filhos em arquivos públicos.** Para o sistema administrativo real, conectar o painel a autenticação + banco de dados/backend seguro.
 
-## GitHub Pages
-Publicação: branch `main`, pasta `/` (raiz).
+GitHub Pages é hospedagem estática. O acesso ADM desta versão é somente demonstração e não é um mecanismo de autenticação. Não coloque senhas reais, documentos, notas, telefones ou dados pessoais de filhos no repositório, no HTML, no JavaScript ou no armazenamento do navegador.
+
+Para transformar as áreas internas em um sistema real, a próxima etapa deve usar autenticação no servidor, banco de dados com controle de acesso, HTTPS e regras de autorização por usuário.
+
+## Publicação
+
+Use a branch main e a pasta raiz (/) nas configurações do GitHub Pages.
