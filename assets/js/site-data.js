@@ -6,8 +6,8 @@ window.ALDEIA_DATA = {
     address: "Rua Marques de Herval, 3500"
   },
   schedule: [
-    { day: "Quinta-feira", title: "Atendimento", text: "Programação e orientações divulgadas pela administração." },
-    { day: "Sexta-feira", title: "Trabalhos", text: "Confira os avisos oficiais antes de se dirigir à casa." }
+    { day: "Segunda a quinta-feira", title: "Trabalhos particulares", text: "Atendimento das 8h às 21h." },
+    { day: "Sexta-feira", title: "Trabalho aberto ao público", text: "A partir das 19h30." }
   ],
   events: [
     { id: "cosme-damiao-2026", title: "Festa de São Cosme e São Damião", date: "26/09/2026", time: "19h", address: "Rua Marques de Herval, 3500", city: "Campo Grande/MS" }
