@@ -35,7 +35,7 @@ export default {
       if (!body.email || !body.password || !body.full_name || !body.role)
         return Response.json({ error: "Nome, e-mail, senha e perfil são obrigatórios." }, { status: 400 });
 
-      const { data: created, error } = await ctx.supabaseAdmin.auth.admin.createUser({
+      const { data: created, error: createError } = await ctx.supabaseAdmin.auth.admin.createUser({
         email: body.email.trim().toLowerCase(),
         password: body.password,
         email_confirm: true,
