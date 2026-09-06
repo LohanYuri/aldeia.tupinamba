@@ -223,6 +223,18 @@ async function whatsCompras(){
  const text='🛒 CHECKLIST DO FINANCEIRO — ALDEIA TUPINAMBÁ\\n\\n'+(data||[]).map(x=>'☐ '+x.category+': '+x.item_name+' — '+x.quantity+' '+(x.unit||'')+' — orçamento '+money(x.total_price)).join('\\n')+'\\n\\nTotal orçado: '+money((data||[]).reduce((s,x)=>s+Number(x.total_price||0),0));
  openWhats(text)
 }
+async function atualizarAcompanhamento(){
+ await loadBase();
+ let falhas=[];
+ for(const ch of children.filter(x=>x.active)){
+   const {error}=await sb.rpc('recalculate_child_accountability',{p_child_id:ch.id});
+   if(error) falhas.push(ch.full_name+': '+error.message);
+ }
+ await audit('recalculate_accountability','child_compliance',null,{children_checked:children.filter(x=>x.active).length,errors:falhas.length});
+ if(falhas.length) alert('Acompanhamento atualizado, mas houve falha em: '+falhas.join(' | '));
+ else alert('Acompanhamento de todos os filhos ativos atualizado.');
+ ocorrencias();
+}
 async function ocorrencias(){
  const [{data:summary},{data:occ},{data:actions}]=await Promise.all([
   sb.from('child_accountability_summary').select('*').order('points',{ascending:false}),
@@ -233,7 +245,7 @@ async function ocorrencias(){
  window.__compliance=occ||[];
  window.__disciplinary=actions||[];
  const needs=(summary||[]).filter(x=>x.active && (x.points>0 || x.warnings>0));
- view.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><h2>⚖️ Acompanhamento e advertências</h2><p class="lead">O sistema aponta pendências financeiras, faltas e responsabilidades. A autoridade da casa decide a advertência e qualquer medida disciplinar.</p></div><button class="btn gold" onclick="novaOcorrencia()">+ Registrar ocorrência</button></div>'+
+ view.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><h2>⚖️ Acompanhamento e advertências</h2><p class="lead">O sistema aponta pendências financeiras, faltas e responsabilidades. A autoridade da casa decide a advertência e qualquer medida disciplinar.</p></div><div class="row-actions"><button class="btn gold" onclick="atualizarAcompanhamento()">🔄 Atualizar acompanhamento automático</button><button class="btn secondary" onclick="novaOcorrencia()">+ Registrar ocorrência</button></div></div>'+
  '<div class="notice-box">📌 <b>Regra progressiva configurada:</b> até 3 advertências registradas. Na 4ª ocorrência disciplinar, o sistema sinaliza <b>conversa particular com o Pai/Mãe de Santo</b>. Se não houver regularização, o Comandante pode registrar o <b>encaminhamento da decisão da autoridade</b>. <b>Nenhuma saída da casa é automática.</b></div>'+
  '<div class="command-grid">'+
  card('👥 Em atenção','<div class="command-stat">'+needs.length+'</div><p>Filhos ativos com alguma pendência ou advertência.</p>')+
