@@ -204,6 +204,27 @@
     a.addEventListener("click", () => nav.classList.remove("open"));
   });
 
+  async function syncPortalContent(){
+    try{
+      const client=window.ALDEIA_SUPABASE;
+      if(!client) return;
+      const [{data:notices},{data:rules}]=await Promise.all([
+        client.from("notices").select("title,body,created_at").eq("published",true).eq("audience","todos").order("created_at",{ascending:false}).limit(8),
+        client.from("rule_versions").select("title,body,version").eq("active",true).order("published_at",{ascending:false}).limit(1)
+      ]);
+      const noticeBox=document.querySelector("#avisos .notice");
+      if(noticeBox){
+        noticeBox.innerHTML=notices?.length
+          ? notices.map(n=>"<b>"+escapeHtml(n.title)+"</b><span>"+escapeHtml(n.body).replace(/\\n/g,"<br>")+"</span>").join("<hr>")
+          : "<b>Portal oficial</b><span>Horários, orientações, eventos e comunicados serão publicados aqui.</span>";
+      }
+      const rulesBox=document.querySelector("#regras .rules");
+      if(rulesBox && rules?.[0]){
+        rulesBox.innerHTML="<p><b>"+escapeHtml(rules[0].version)+"</b> — "+escapeHtml(rules[0].title)+"</p><p>"+escapeHtml(rules[0].body).replace(/\\n/g,"</p><p>")+"</p>";
+      }
+    }catch(e){ console.warn("Conteúdo público do Supabase indisponível",e); }
+  }
+
   async function syncPublicSettings(){
     try{
       const client=window.ALDEIA_SUPABASE;
@@ -231,6 +252,7 @@
 
   document.addEventListener("DOMContentLoaded", async () => {
     await syncPublicSettings();
+    await syncPortalContent();
     const year = new Date().getFullYear();
     document.querySelectorAll("[data-year]").forEach((el) => {
       el.textContent = year;
