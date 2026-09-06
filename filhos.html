@@ -3,7 +3,7 @@
 <h2>✍️ Termo de ciência e aceite</h2><div class="notice"><b>Leia antes de confirmar.</b><br>O registro inclui nome, data/hora e versão das regras. O histórico destinado à administração fica na Área ADM.</div>
 <form id="ciencia" class="donate"><label>Nome completo<input id="nome" required autocomplete="name" placeholder="Digite seu nome completo"></label>
 <label><input type="checkbox" required> Li e concordo com todas as regras da casa apresentadas acima.</label><label><input type="checkbox" required> Estou ciente da proibição de gravar, fotografar ou filmar as giras sem autorização.</label><label><input type="checkbox" required> Estou ciente das mensalidades, cotas, escalas, limpezas e funções que assumo como filho.</label><label><input type="checkbox" required> Comprometo-me a respeitar os dirigentes, trabalhadores, consulentes, visitantes, graduados e a hierarquia.</label><label><input type="checkbox" required> Comprometo-me a participar ativamente da casa e comunicar previamente ausências excepcionais quando possível.</label><label><input type="checkbox" required> Declaro ciência das orientações de chegada, banho/descarrego, corrente, silêncio durante a gira e respeito ao espaço sagrado.</label>
-<button class="btn gold" type="submit">Li, concordo e registrar ciência</button></form><div id="resultado" class="notice" hidden></div><h2>📢 Comunicados</h2><div class="module"><p>Mensagens e orientações oficiais da administração da casa.</p></div></section></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="assets/js/supabase-config.js"></script><script>
+<button class="btn gold" type="submit">Li, concordo e registrar ciência</button></form><div id="resultado" class="notice" hidden></div><h2>📢 Comunicados</h2><div id="adminNotices" class="module-grid"></div></section></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="assets/js/supabase-config.js"></script><script>
 const sb=window.ALDEIA_SUPABASE; const VERSION='2026-09-06-regras-v1'; const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 async function entrar(){
  const email=document.getElementById('email').value.trim(), senha=document.getElementById('senha').value;
@@ -30,19 +30,30 @@ async function carregarFilho(user){
 }
 async function carregarEscalas(childId){
  const box=document.querySelector('#painel .module-grid');
- const [{data:assignments},{data:notices}]=await Promise.all([
-   sb.from('scale_assignments').select('function_name,scales(scale_date,weekday,start_time,end_time,status,notes)').eq('child_id',childId).order('id',{ascending:false}),
-   sb.from('scale_notices').select('title,body,sort_order').eq('active',true).order('sort_order',{ascending:true})
+ const [{data:assignments},{data:notices},{data:adminNotices}]=await Promise.all([
+   sb.from('scale_assignments').select('function_name,scales(scale_date,weekday,start_time,end_time,status,notes,published_at)').eq('child_id',childId).order('id',{ascending:false}),
+   sb.from('scale_notices').select('title,body,sort_order').eq('active',true).order('sort_order',{ascending:true}),
+   sb.from('admin_notices').select('id,title,body,event_date,event_time,mandatory,published,created_at').eq('published',true).order('created_at',{ascending:false}).limit(10)
  ]);
- if(assignments?.length){
-   box.innerHTML=assignments.map(a=>'<article class="module"><h3>📅 '+(a.scales?.weekday||'Escala')+'</h3><p><b>'+((a.scales?.scale_date)||'')+'</b></p><p>'+(a.scales?.start_time||'')+' '+(a.scales?.end_time?'às '+a.scales.end_time:'')+'</p><p>'+ (a.function_name||'Função definida pela administração')+'</p><p class="muted">'+(a.scales?.notes||'')+'</p></article>').join('');
+ const visible=(assignments||[]).filter(a=>a.scales?.published_at);
+ if(visible.length){
+   box.innerHTML=visible.map(a=>'<article class="module"><h3>📅 '+esc(a.scales?.weekday||'Escala')+'</h3><p><b>'+esc(a.scales?.scale_date||'')+'</b></p><p>'+(a.scales?.start_time?esc(a.scales.start_time.slice(0,5)):'Sem horário fixo')+' '+(a.scales?.end_time?'às '+esc(a.scales.end_time.slice(0,5)):'')+'</p><p>'+esc(a.function_name||'Função definida pela administração')+'</p><p class="muted">'+esc(a.scales?.notes||'')+'</p></article>').join('');
  } else {
-   box.innerHTML='<article class="module"><h3>📅 Escala individual</h3><p>Sua escala aparecerá aqui quando a administração vincular seu nome a uma equipe.</p></article>';
+   box.innerHTML='<article class="module"><h3>📅 Escala individual</h3><p>Sua escala aparecerá aqui quando a administração publicar a escala.</p></article>';
  }
  const noticeArea=document.querySelector('#scaleNotices');
  if(noticeArea){
    noticeArea.innerHTML=(notices?.length?notices.map(n=>'<article class="module"><h3>'+esc(n.title)+'</h3><p>'+esc(n.body)+'</p></article>').join(''):'<div class="notice">Nenhum recado de escala publicado no momento.</div>');
  }
+ const adminArea=document.querySelector('#adminNotices');
+ if(adminArea){
+   adminArea.innerHTML=(adminNotices?.length?adminNotices.map(n=>'<article class="module"><h3>🚨 '+esc(n.title)+'</h3><p>'+esc(n.body)+'</p><small>'+esc(n.event_date||'')+' '+(n.event_time?esc(n.event_time.slice(0,5)):'')+'</small><button class="btn gold" style="margin-top:10px" onclick="confirmarAvisoADM(\''+n.id+'\')">Estou ciente</button></article>').join(''):'');
+ }
+}
+async function confirmarAvisoADM(id){
+ const {data:{user}}=await sb.auth.getUser();if(!user)return;
+ const {error}=await sb.from('admin_notice_acknowledgements').upsert({notice_id:id,profile_id:user.id,acknowledged_at:new Date().toISOString()},{onConflict:'notice_id,profile_id'});
+ if(error){alert(error.message);return}alert('Ciência registrada.');carregarFilho(user);
 }
 async function sair(){await sb.auth.signOut();sessionStorage.removeItem('filhos_supabase');location.reload()}
 document.getElementById('ciencia').onsubmit=async e=>{
