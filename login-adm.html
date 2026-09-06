@@ -8,8 +8,8 @@ async function entrar(){
  const {data,error}=await sb.auth.signInWithPassword({email,password:senha});
  if(error){erro.textContent='E-mail ou senha incorretos.';return}
  const {data:profile}=await sb.from('profiles').select('full_name,role').eq('id',data.user.id).maybeSingle();
- if(!profile||!['adm','dirigente'].includes(profile.role)){await sb.auth.signOut();erro.textContent='Este usuário não possui autorização administrativa.';return}
+ if(!profile||!['adm','dirigente','financeiro'].includes(profile.role)){await sb.auth.signOut();erro.textContent='Este usuário não possui autorização administrativa.';return}
  sessionStorage.setItem('aldeia_adm_supabase','1');location.href=profile.role==='financeiro'?'comandante.html':'adm.html';
 }
-(async()=>{const {data:{session}}=await sb.auth.getSession();if(session){const {data:p}=await sb.from('profiles').select('role').eq('id',session.user.id).maybeSingle();if(p&&['adm','dirigente'].includes(p.role))location.href='adm.html';}})();
+(async()=>{const {data:{session}}=await sb.auth.getSession();if(session){const {data:p}=await sb.from('profiles').select('role').eq('id',session.user.id).maybeSingle();if(p&&['adm','dirigente','financeiro'].includes(p.role))location.href=p.role==='financeiro'?'comandante.html':'adm.html';}})();
 </script></body></html>
