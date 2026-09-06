@@ -182,7 +182,7 @@ async function financeiro(){
  const totalPending=pending.reduce((s,x)=>s+Number(x.dues?.amount||0),0);
  view.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><h2>🧾 Cotas e mensalidades</h2><p class="lead">Cada cobrança nova é vinculada automaticamente aos filhos ativos.</p></div><div class="row-actions"><button class="btn gold" onclick="novaCobranca()">+ Nova cobrança</button><button class="btn outline" onclick="relatorios()">📊 Relatório mensal</button></div></div>'+
  '<div class="command-grid">'+card('👥 Filhos ativos','<div class="command-stat">'+active.length+'</div><p>Base atual para rateio.</p>')+card('✅ Pagos','<div class="command-stat">'+paid.length+'</div><p>'+money(paid.reduce((s,x)=>s+Number(x.dues?.amount||0),0))+'</p>')+card('⏳ Pendentes','<div class="command-stat">'+pending.length+'</div><p>'+money(totalPending)+'</p>')+'</div>'+
- '<h3 style="margin-top:25px">Cobranças</h3><div class="command-grid">'+(dues||[]).map(d=>card('💰 '+esc(d.title),'<div class="money">'+money(d.amount)+'</div><p>'+esc(d.description||'')+'</p><p>'+esc(d.reference_month||'')+' • vencimento dia '+esc(d.due_day||'—')+'</p><button class="btn secondary" onclick="abrirCobranca(\''+d.id+'\')">Ver pagamentos</button>')).join('')+'</div>'+
+ '<h3 style="margin-top:25px">📲 Prestação de contas</h3><div class="notice-box">O comprovante recebido no WhatsApp é conferido pelo Comandante/Financeiro. <b>Somente depois da confirmação no portal o pagamento passa para “Pago”.</b> O sistema registra quem confirmou e quando.</div><h3 style="margin-top:25px">Cobranças</h3><div class="command-grid">'+(dues||[]).map(d=>card('💰 '+esc(d.title),'<div class="money">'+money(d.amount)+'</div><p>'+esc(d.description||'')+'</p><p>'+esc(d.reference_month||'')+' • vencimento dia '+esc(d.due_day||'—')+'</p><button class="btn secondary" onclick="abrirCobranca(\''+d.id+'\')">Ver pagamentos</button>')).join('')+'</div>'+
  '<div id="dueDetail" style="margin-top:20px"></div>';
 }
 function novaCobranca(){view.innerHTML='<h2>➕ Nova cota / mensalidade</h2><form id="df" class="command-form"><label>Tipo<select name="kind"><option value="mensalidade">Mensalidade</option><option value="cosme_damiao">Cota de Cosme e Damião</option><option value="cacique">Cota Cacique</option><option value="outra">Outra cota</option></select></label><label>Título<input name="title" required placeholder="Mensalidade Setembro"></label><label>Valor por filho<input name="amount" type="number" step="0.01" required></label><label>Dia de vencimento<input name="due_day" type="number" min="1" max="31"></label><label>Referência<input name="reference_month" type="date" value="'+today()+'"></label><label class="full">Descrição<textarea name="description" rows="4" placeholder="Finalidade da cobrança"></textarea></label><div class="full notice-box">O sistema vinculará automaticamente esta cobrança a todos os filhos que estiverem <b>ativos</b> no momento da criação.</div><div class="full"><button class="btn gold">Criar cobrança</button><button class="btn secondary" type="button" onclick="financeiro()">Cancelar</button></div></form>';
@@ -195,7 +195,21 @@ async function abrirCobranca(id){
  document.getElementById('dueDetail').innerHTML='<div class="command-card"><h3>'+esc(d.title)+' — '+money(d.amount)+'</h3><p>'+activeRows.length+' filhos ativos vinculados.</p><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Filho</th><th>Status</th><th>Pagamento</th><th>Ação</th></tr></thead><tbody>'+
  activeRows.map(x=>'<tr><td>'+esc(x.children?.full_name||'')+'</td><td><span class="pill '+(x.status==='pago'?'success':'warn')+'">'+esc(x.status)+'</span></td><td>'+esc(x.paid_at?new Date(x.paid_at).toLocaleString('pt-BR'):'—')+'</td><td><button class="btn '+(x.status==='pago'?'secondary':'gold')+'" onclick="togglePagamento(\''+x.id+'\',\''+x.status+'\',\''+id+'\')">'+(x.status==='pago'?'Marcar pendente':'Marcar pago')+'</button></td></tr>').join('')+'</tbody></table></div></div>';
 }
-async function togglePagamento(id,status,dueId){const paid=status!=='pago';const {error}=await sb.from('child_dues').update({status:paid?'pago':'pendente',paid_at:paid?new Date().toISOString():null,payment_note:paid?'Pagamento confirmado pelo Financeiro':null}).eq('id',id);if(error){msg(error);return}await audit(paid?'mark_due_paid':'mark_due_pending','child_dues',id,{});await financeiro();setTimeout(()=>abrirCobranca(dueId),0)}
+async function togglePagamento(id,status,dueId){
+ const paid=status!=='pago';
+ if(paid){
+   const row=(window.__childDues||[]).find(x=>x.id===id);
+   const nome=row?.children?.full_name||'Filho';
+   const valor=money(row?.dues?.amount||0);
+   const ok=confirm('Confirmar pagamento?\\n\\nFilho: '+nome+'\\nValor: '+valor+'\\n\\nConfirme somente após conferir o comprovante recebido no WhatsApp.');
+   if(!ok)return;
+ }
+ const now=paid?new Date().toISOString():null;
+ const {error}=await sb.from('child_dues').update({status:paid?'pago':'pendente',paid_at:now,payment_note:paid?'Pagamento confirmado pelo Financeiro em '+new Date(now).toLocaleString('pt-BR'):null}).eq('id',id);
+ if(error){msg(error);return}
+ await audit(paid?'mark_due_paid':'mark_due_pending','child_dues',id,{confirmed_by:me.id,confirmed_at:now});
+ await financeiro();setTimeout(()=>abrirCobranca(dueId),0)
+}
 async function compras(){
  const month=today().slice(0,7)+'-01';
  const {data}=await sb.from('finance_budget_items').select('*').eq('reference_month',month).order('created_at',{ascending:false});
