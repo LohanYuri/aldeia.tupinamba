@@ -2,7 +2,7 @@
 <body class="internal"><header class="top"><a class="brand" href="index.html"><span class="brand-mark">✦</span><span><b>Aldeia Tupinambá</b><small>Área administrativa</small></span></a><a href="index.html">Portal público</a></header>
 <main class="panel"><div class="panel-head"><div><span class="eyebrow">PAINEL INTERNO</span><h1>Administração da Aldeia</h1><p class="lead">Escalas, avaliações, eventos e relatórios da organização interna.</p></div><button class="btn secondary" onclick="sair()">Sair</button></div>
 <div class="module-grid">
-<article class="module"><span class="icon">📅</span><h3>Escala de quinta-feira</h3><p>Equipes, funções e avaliação da limpeza.</p><button class="btn gold" onclick="quinta()">Registrar</button></article>
+<article class="module"><span class="icon">📅</span><h3>Escala de quinta-feira</h3><p>Equipes, funções e avaliação da limpeza.</p><button class="btn gold" onclick="quinta()">Registrar</button></article><article class="module scale-module"><span class="icon">🧹</span><h3>Escala de limpeza — Setembro</h3><p>Escala oficial, responsáveis, recados, vistoria e participação.</p><button class="btn gold" onclick="escalaSetembro()">Abrir escala</button></article>
 <article class="module"><span class="icon">🔮</span><h3>Avaliação de sexta-feira</h3><p>Avaliação geral de todos os participantes.</p><button class="btn gold" onclick="sexta()">Registrar</button></article>
 <article class="module"><span class="icon">🎉</span><h3>Festas e eventos</h3><p>Participantes, tarefas e sorteio das funções.</p><button class="btn gold" onclick="festa()">Registrar</button></article>
 <article class="module"><span class="icon">📊</span><h3>Relatórios</h3><p>Histórico e relatório consolidado para a responsável da casa.</p><button class="btn gold" onclick="relatorios()">Abrir</button></article>
@@ -21,13 +21,45 @@ async function init(){
  if(!session){location.href='login-adm.html';return}
  const {data:p,error}=await sb.from('profiles').select('full_name,role').eq('id',session.user.id).maybeSingle();
  if(error||!p||!['adm','dirigente'].includes(p.role)){await sb.auth.signOut();location.href='login-adm.html';return}
- window.ADM_USER=session.user; window.ADM_PROFILE=p; await dados();
+ window.ADM_USER=session.user; window.ADM_PROFILE=p; await escalaSetembro();
 }
 function shell(title,fields){area.innerHTML='<h2>'+title+'</h2><form id="f" class="contact">'+fields+'<div style="grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap"><button class="btn gold">Salvar no banco</button><button class="btn secondary" type="button" onclick="home()">Cancelar</button></div></form>'}
 async function getChildren(names){
  const {data}=await sb.from('children').select('id,full_name').eq('active',true);
  return (names||[]).map(n=>data?.find(c=>c.full_name.toLowerCase()===n.toLowerCase())).filter(Boolean);
 }
+
+async function escalaSetembro(){
+ const [{data:scales,error:se},{data:notices,error:ne}]=await Promise.all([
+   sb.from('scales').select('id,scale_date,weekday,start_time,end_time,status,notes,teams(name),scale_assignments(child_id,function_name,notes,children(full_name))').eq('teams.name','Escala de limpeza — Setembro 2026').order('scale_date',{ascending:true}),
+   sb.from('scale_notices').select('title,body,sort_order').eq('active',true).order('sort_order',{ascending:true})
+ ]);
+ if(se){area.innerHTML='<div class="notice">Não foi possível carregar a escala: '+esc(se.message)+'</div>';return}
+ const rows=scales||[];
+ const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+ const responsaveis=['Cris','Gabriel','Luana Escobar'];
+ const rowsHtml=rows.map(s=>{
+   const assigned=s.scale_assignments||[];
+   const fixed=assigned.filter(a=>responsaveis.includes(a.children?.full_name||'')).map(a=>a.children.full_name).join(', ');
+   const mediuns=assigned.filter(a=>!responsaveis.includes(a.children?.full_name||'')).map(a=>a.children.full_name).join(', ');
+   const all=assigned.map(a=>a.children?.full_name).filter(Boolean).join(', ');
+   const label=s.scale_date==='2026-09-20'?'FAXINÃO GERAL':s.scale_date==='2026-09-25'?'DIA DE FESTA':mediuns;
+   return '<tr><td><b>'+fmt(s.scale_date)+'</b></td><td>'+esc(s.weekday)+' — '+esc((s.start_time||'').slice(0,5))+'</td><td>'+esc(fixed||'Todos os filhos da casa')+'</td><td>'+esc(label||all)+'</td><td><button class="btn small outline" onclick="vistoriaScale(\''+esc(s.scale_date)+'\')">Vistoria</button></td></tr>';
+ }).join('');
+ const noticeHtml=(notices||[]).map(n=>'<article class="scale-notice"><h3>'+esc(n.title)+'</h3><p>'+esc(n.body)+'</p></article>').join('');
+ area.innerHTML='<div class="scale-board"><div class="scale-head"><div><span class="eyebrow">ALDEIA TUPINAMBÁ</span><h2>🧹 Escala de Limpeza — Mês de Setembro</h2><p>Controle administrativo das limpezas, responsáveis, vistoria e participação dos filhos.</p></div><div class="scale-badge">📋 Setembro / 2026</div></div><div class="scale-fixed"><span>👥</span><div><b>PRESENÇA FIXA</b><p>Cris, Gabriel e Luana Escobar estarão presentes em todas as faxinas.</p></div></div><div class="scale-grid">'+noticeHtml+'</div><div class="scale-warning">⚠️ <b>SERÃO VISTORIADOS DEPOIS QUE TERMINAREM A LIMPEZA!</b><span>SÓ VÃO SER LIBERADOS DEPOIS DA VISTORIA!</span></div><div class="scale-comms"><div><h3>📢 COMUNICADOS IMPORTANTES</h3><p>Se houver alguma mudança, os responsáveis serão comunicados com antecedência.</p><p>Olhem o grupo de WhatsApp. Qualquer comunicado deverá ser feito nele.</p></div><div><h3>📋 ACOMPANHAMENTO ADMINISTRATIVO</h3><p>A administração realizará o acompanhamento da participação dos filhos durante o mês.</p></div></div><div class="scale-table-wrap"><table class="scale-table"><thead><tr><th>DATA</th><th>DIA E HORÁRIO</th><th>RESPONSÁVEIS</th><th>MÉDIUNS</th><th>VISTORIA</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div><div class="scale-footer">⚠️ <b>IMPORTANTE!</b><span>A limpeza deve ser feita com capricho, organização e respeito ao nosso Terreiro. Cada detalhe importa: o cuidado com o lugar é cuidado com a nossa fé.</span></div></div>';
+}
+
+async function vistoriaScale(date){
+ const {data:scale}=await sb.from('scales').select('id,scale_date,weekday,start_time,scale_assignments(child_id,function_name,children(full_name))').eq('scale_date',date).limit(1).maybeSingle();
+ if(!scale){alert('Escala não encontrada.');return}
+ const assigned=scale.scale_assignments||[];
+ const people=assigned.map(a=>a.children?.full_name).filter(Boolean);
+ const fields='<label>Data<input name="date" type="date" value="'+esc(date)+'" readonly></label><label>Responsável pela vistoria<input name="responsible" value="'+esc(ADM_PROFILE?.full_name||'ADM')+'" readonly></label><label style="grid-column:1/-1">Orientação da vistoria<div class="notice">Conferir imagens, cantos, teias de aranha, cachoeira e choupana. Só liberar após a conferência completa.</div></label>'+people.map((name,i)=>'<label class="check-row"><span><input type="checkbox" name="ok'+i+'" value="1"> '+esc(name)+'</span><small>Limpeza conferida / participação registrada</small></label>').join('')+'<label style="grid-column:1/-1">Observações da vistoria<textarea name="notes" rows="6" placeholder="Registre o que foi encontrado, correções solicitadas e a liberação."></textarea></label>';
+ shell('🧹 Vistoria da limpeza — '+new Date(date+'T12:00:00').toLocaleDateString('pt-BR'),fields);
+ f.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(f).entries());const rows=people.map((name,i)=>{const child=assigned.find(a=>a.children?.full_name===name)?.child_id;return child?{scale_id:scale.id,child_id:child,evaluated_by:ADM_USER.id,completed:d['ok'+i]==='1',score:d['ok'+i]==='1'?10:0,notes:d.notes||null}:null}).filter(Boolean);const {error}=await sb.from('cleaning_evaluations').insert(rows);if(error){alert(error.message);return}toast('Vistoria registrada no banco. Os resultados ficaram vinculados à escala e ao ADM que realizou a conferência.');escalaSetembro()};
+}
+
 function quinta(){shell('📅 Escala e avaliação de quinta-feira','<label>Data<input name="date" type="date" value="'+today()+'" required></label><label>Equipe / setor<input name="team" required placeholder="Nome da equipe"></label><label>Horário<input name="time" type="time"></label><label style="grid-column:1/-1">Participantes da equipe<textarea name="people" rows="6" required placeholder="Um nome por linha"></textarea></label><label>Funções<textarea name="tasks" rows="5" placeholder="Limpeza, organização, apoio..."></textarea></label><label>Resultado<textarea name="result" rows="5"></textarea></label><label style="grid-column:1/-1">Avaliação da limpeza dos participantes<textarea name="cleaning" rows="6" placeholder="Descreva a avaliação de cada médium/filho"></textarea></label><label style="grid-column:1/-1">Observações<textarea name="notes" rows="5"></textarea></label>');f.onsubmit=salvarQuinta}
 async function salvarQuinta(e){e.preventDefault();const d=Object.fromEntries(new FormData(f).entries());const {data:team}=await sb.from('teams').upsert({name:d.team,description:d.tasks||null},{onConflict:'name'}).select().single();const {data:scale,error}=await sb.from('scales').insert({scale_date:d.date,weekday:'Quinta-feira',team_id:team?.id,start_time:d.time||null,status:'realizada',notes:(d.result||'')+'\n'+(d.notes||''),created_by:ADM_USER.id}).select().single();if(error){alert(error.message);return}const kids=await getChildren(list(d.people));for(const ch of kids)await sb.from('scale_assignments').insert({scale_id:scale.id,child_id:ch.id,function_name:d.tasks||null,notes:d.cleaning||null});await sb.from('cleaning_evaluations').insert(kids.map(ch=>({scale_id:scale.id,child_id:ch.id,evaluated_by:ADM_USER.id,completed:true,notes:d.cleaning||null})));toast('Escala de quinta salva no Supabase.');relatorios()}
 function sexta(){shell('🔮 Avaliação geral da sexta-feira','<label>Data<input name="date" type="date" value="'+today()+'" required></label><label style="grid-column:1/-1">Todos os participantes avaliados<textarea name="people" rows="7" required placeholder="Um nome por linha"></textarea></label><label>Presença e pontualidade<textarea name="attendance" rows="4"></textarea></label><label>Participação e compromisso<textarea name="participation" rows="4"></textarea></label><label>Organização, postura e respeito<textarea name="conduct" rows="4"></textarea></label><label>Limpeza após a gira<textarea name="cleaning" rows="4"></textarea></label><label style="grid-column:1/-1">Avaliação geral<textarea name="notes" rows="6" required></textarea></label>');f.onsubmit=salvarSexta}
