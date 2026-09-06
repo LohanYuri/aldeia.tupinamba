@@ -204,7 +204,33 @@
     a.addEventListener("click", () => nav.classList.remove("open"));
   });
 
-  document.addEventListener("DOMContentLoaded", () => {
+  async function syncPublicSettings(){
+    try{
+      const client=window.ALDEIA_SUPABASE;
+      if(!client) return;
+      const {data,error}=await client.from("public_settings").select("key,value");
+      if(error||!data) return;
+      const settings=Object.fromEntries(data.map(x=>[x.key,x.value]));
+      if(settings.whatsapp){
+        data.contact=data.contact||{};
+        window.ALDEIA_DATA.contact.whatsapp=settings.whatsapp;
+      }
+      if(settings.pix_key){
+        window.ALDEIA_DATA.donation=window.ALDEIA_DATA.donation||{};
+        window.ALDEIA_DATA.donation.pixKey=settings.pix_key;
+      }
+      if(settings.private_hours) window.ALDEIA_DATA.schedule[0].text=settings.private_hours;
+      if(settings.friday_hours) window.ALDEIA_DATA.schedule[1].text=settings.friday_hours;
+      document.querySelectorAll("[data-whatsapp]").forEach(el=>{
+        const digits=normalizeWhatsApp(settings.whatsapp||window.ALDEIA_DATA.contact.whatsapp);
+        if(digits) el.href="https://wa.me/"+digits;
+      });
+      document.querySelectorAll("[data-pix-key]").forEach(el=>el.textContent=settings.pix_key||window.ALDEIA_DATA.donation.pixKey);
+    }catch(e){ console.warn("Supabase público indisponível",e); }
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    await syncPublicSettings();
     const year = new Date().getFullYear();
     document.querySelectorAll("[data-year]").forEach((el) => {
       el.textContent = year;
