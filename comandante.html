@@ -35,7 +35,7 @@ async function init(){
  nav.innerHTML=[
  ['dashboard','🏠 Geral'],['escala','📅 Escala automática'],['membros','👥 Filhos'],['logins','🔐 Logins ADM'],
  ['avisos','🚨 Avisos ADM'],['portal','📢 Portal'],['financeiro','🧾 Cotas/Mensalidades'],
- ['compras','🛒 Compras e orçamento'],['ocorrencias','⚖️ Ocorrências'],['relatorios','📊 Relatório mensal'],['regras','📜 Regras/PIX'],['auditoria','🛡️ Auditoria']
+ ['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['ocorrencias','⚖️ Ocorrências'],['relatorios','📊 Relatório mensal'],['regras','📜 Regras/PIX'],['auditoria','🛡️ Auditoria']
  ].map((x,i)=>'<button class="'+(i?'':'active')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('');
  await loadBase();dashboard();
 }
@@ -46,7 +46,7 @@ async function loadBase(){
  ]);
  children=c.data||[];users=u.data||[];
 }
-function go(k,b){document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,ocorrencias,relatorios,regras,auditoria}[k]||dashboard)()}
+function go(k,b){document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,ocorrencias,relatorios,regras,auditoria}[k]||dashboard)()}
 function card(t,b){return '<article class="command-card"><h3>'+t+'</h3>'+b+'</article>'}
 async function audit(action,entity,entity_id,details){await sb.from('audit_logs').insert({actor_id:me.id,action,entity,entity_id:entity_id||null,details:details||{}})}
 async function dashboard(){
@@ -237,6 +237,32 @@ async function whatsCompras(){
  const month=today().slice(0,7)+'-01';const {data}=await sb.from('finance_budget_items').select('*').eq('reference_month',month).order('category');
  const text='🛒 CHECKLIST DO FINANCEIRO — ALDEIA TUPINAMBÁ\\n\\n'+(data||[]).map(x=>'☐ '+x.category+': '+x.item_name+' — '+x.quantity+' '+(x.unit||'')+' — orçamento '+money(x.total_price)).join('\\n')+'\\n\\nTotal orçado: '+money((data||[]).reduce((s,x)=>s+Number(x.total_price||0),0));
  openWhats(text)
+}
+async function tesouraria(){
+ const [{data:cats},{data:entries}]=await Promise.all([
+  sb.from('treasury_categories').select('*').eq('active',true).order('name'),
+  sb.from('treasury_entries').select('id,entry_date,kind,description,amount,payment_method,reference,notes,created_at,treasury_categories(name),profiles(full_name)').order('entry_date',{ascending:false}).limit(300)
+ ]);
+ const es=entries||[],tin=es.filter(x=>x.kind==='entrada').reduce((s,x)=>s+Number(x.amount||0),0),tout=es.filter(x=>x.kind==='saida').reduce((s,x)=>s+Number(x.amount||0),0);
+ window.__treasury={cats:cats||[],entries:es};
+ view.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><h2>💰 Tesouraria da Casa</h2><p class="lead">Caixa, entradas, saídas, livro-caixa e fechamento mensal.</p></div><div class="row-actions"><button class="btn gold" onclick="novaTesourariaEntrada()">➕ Lançar movimentação</button><button class="btn secondary" onclick="fecharTesouraria()">🔒 Fechar mês</button></div></div>'+
+ '<div class="command-grid">'+card('🟢 Entradas','<div class="money">'+money(tin)+'</div>')+card('🔴 Saídas','<div class="money">'+money(tout)+'</div>')+card('💰 Saldo do livro','<div class="money">'+money(tin-tout)+'</div>')+card('📖 Lançamentos','<div class="command-stat">'+es.length+'</div>')+'</div>'+
+ '<div class="notice-box">🔐 Toda movimentação registra responsável e data. O fechamento mensal não apaga lançamentos; ele congela o resultado daquele período para prestação de contas.</div>'+
+ '<h3 style="margin-top:24px">📖 Livro-caixa</h3><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Responsável</th></tr></thead><tbody>'+
+ es.map(x=>'<tr><td>'+esc(x.entry_date)+'</td><td><span class="pill '+(x.kind==='entrada'?'success':'warn')+'">'+(x.kind==='entrada'?'🟢 Entrada':'🔴 Saída')+'</span></td><td>'+esc(x.treasury_categories?.name||'—')+'</td><td><b>'+esc(x.description)+'</b><br><span class="mini">'+esc(x.payment_method||'')+' '+esc(x.reference||'')+'</span></td><td>'+money(x.amount)+'</td><td>'+esc(x.profiles?.full_name||'—')+'</td></tr>').join('')+'</tbody></table></div>';
+}
+function novaTesourariaEntrada(){
+ const cats=window.__treasury?.cats||[];
+ view.innerHTML='<h2>💰 Novo lançamento</h2><form id="tf" class="command-form"><label>Data<input name="entry_date" type="date" value="'+today()+'" required></label><label>Tipo<select name="kind"><option value="entrada">🟢 Entrada</option><option value="saida">🔴 Saída</option></select></label><label>Categoria<select name="category_id">'+cats.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')+'</select></label><label>Valor<input name="amount" type="number" step="0.01" min="0.01" required></label><label>Descrição<input name="description" required placeholder="Ex.: compra de materiais"></label><label>Forma de pagamento<input name="payment_method" placeholder="Pix, dinheiro, cartão..."></label><label>Referência<input name="reference" placeholder="Comprovante, nota, mês..."></label><label class="full">Observação<textarea name="notes" rows="4"></textarea></label><div class="full"><button class="btn gold">Salvar lançamento</button><button type="button" class="btn secondary" onclick="tesouraria()">Cancelar</button></div></form>';
+ document.getElementById('tf').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const q=await sb.from('treasury_entries').insert({entry_date:d.entry_date,kind:d.kind,category_id:d.category_id,description:d.description,amount:Number(d.amount),payment_method:d.payment_method||null,reference:d.reference||null,notes:d.notes||null,created_by:me.id}).select().single();if(q.error){msg(q.error);return}await audit('create_treasury_entry','treasury_entries',q.data.id,{kind:d.kind,amount:Number(d.amount)});tesouraria()}
+}
+async function fecharTesouraria(){
+ const m=today().slice(0,7)+'-01';const {data:es}=await sb.from('treasury_entries').select('kind,amount').gte('entry_date',m).lt('entry_date',(new Date(new Date(m+'T12:00:00').getTime()+32*86400000)).toISOString().slice(0,7)+'-01');
+ const rows=es||[],tin=rows.filter(x=>x.kind==='entrada').reduce((s,x)=>s+Number(x.amount),0),tout=rows.filter(x=>x.kind==='saida').reduce((s,x)=>s+Number(x.amount),0);
+ const opening=Number(prompt('Saldo inicial do mês (R$):','0')||0);const notes=prompt('Observação do fechamento:','');
+ if(notes===null)return;
+ const q=await sb.from('treasury_closings').upsert({reference_month:m,opening_balance:opening,total_in:tin,total_out:tout,closing_balance:opening+tin-tout,closed_by:me.id,closed_at:new Date().toISOString(),notes},{onConflict:'reference_month'}).select().single();
+ if(q.error){msg(q.error);return}await audit('close_treasury_month','treasury_closings',q.data.id,{month:m,opening_balance:opening,total_in:tin,total_out:tout});alert('Fechamento de '+monthName(m)+' registrado. Saldo final: '+money(opening+tin-tout));tesouraria()
 }
 async function atualizarAcompanhamento(){
  await loadBase();
