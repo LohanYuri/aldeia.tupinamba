@@ -106,3 +106,6 @@ CREATE POLICY adm_update_friday ON public.friday_evaluations FOR UPDATE TO publi
 CREATE POLICY adm_read_friday ON public.friday_evaluations FOR SELECT TO public USING (has_role('adm'::app_role));
 
 CREATE POLICY public_read_site_content ON public.site_content FOR SELECT TO anon,authenticated USING (active=true);
+
+REVOKE EXECUTE ON FUNCTION public.has_financeiro() FROM anon;
+GRANT EXECUTE ON FUNCTION public.has_financeiro() TO authenticated;
