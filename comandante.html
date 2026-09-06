@@ -50,21 +50,24 @@ function go(k,b){document.querySelectorAll('.command-nav button').forEach(x=>x.c
 function card(t,b){return '<article class="command-card"><h3>'+t+'</h3>'+b+'</article>'}
 async function audit(action,entity,entity_id,details){await sb.from('audit_logs').insert({actor_id:me.id,action,entity,entity_id:entity_id||null,details:details||{}})}
 async function dashboard(){
- const [s,n,d,a,active]=await Promise.all([
-  sb.from('scales').select('id',{count:'exact',head:true}),
-  sb.from('notices').select('id',{count:'exact',head:true}),
-  sb.from('child_dues').select('id',{count:'exact',head:true}).eq('status','pendente'),
-  sb.from('audit_logs').select('id',{count:'exact',head:true}),
-  sb.from('children').select('id',{count:'exact',head:true}).eq('active',true)
- ]);
- view.innerHTML='<h2>Visão geral</h2><p class="lead">Tudo que altera a rotina da casa deve passar por esta central.</p><div class="command-grid">'+
- card('👥 Filhos ativos','<div class="command-stat">'+(active.count||0)+'</div><p>Base usada pela escala e pelas cobranças.</p>')+
- card('📅 Escalas','<div class="command-stat">'+(s.count||0)+'</div><p>Registros de escala.</p>')+
- card('💰 Pendências','<div class="command-stat">'+(d.count||0)+'</div><p>Cotas/mensalidades pendentes.</p>')+
- card('📢 Comunicados','<div class="command-stat">'+(n.count||0)+'</div><p>Comunicados publicados.</p>')+
- card('🛡️ Auditoria','<div class="command-stat">'+(a.count||0)+'</div><p>Ações registradas.</p>')+
- card('🔄 Automação','<p>Ao desativar um filho, ele sai das escalas automáticas futuras. A distribuição é refeita sem apagar o histórico.</p><span class="pill success">ATIVO</span>')+
- '</div><div class="notice-box" style="margin-top:18px">💡 <b>Regra da escala:</b> equipes regulares usam 19h. Sexta-feira fica sem horário fixo e o Faxinão também fica sem horário fixo, aguardando as ordens maiores.</div>';
+ const {data:summary,error}=await sb.rpc('commander_dashboard_summary',{p_month:today().slice(0,7)+'-01'});
+ if(error){view.innerHTML='<div class="notice-box error">Não foi possível carregar o resumo do Comandante: '+esc(error.message)+'</div>';return}
+ const s=summary||{};
+ const next=s.next_scale;
+ const nextScale=next?esc(next.date)+' • '+esc((next.time||'').slice(0,5)||'sem horário'):'Nenhuma escala próxima';
+ view.innerHTML='<h2>Visão geral do Comandante Geral</h2><p class="lead">Resumo central do financeiro, escalas e acompanhamento dos filhos. Os dados abaixo vêm do banco e respeitam a autorização do Comandante/Financeiro.</p>'+
+ '<div class="command-grid">'+
+ card('👥 Filhos ativos','<div class="command-stat">'+Number(s.active_children||0)+'</div><p>Filhos atualmente ativos na casa.</p>')+
+ card('💰 A receber','<div class="money">'+money(s.pending_dues_amount)+'</div><p>'+Number(s.pending_dues_count||0)+' cobranças pendentes.</p>')+
+ card('✅ Pagamentos','<div class="command-stat">'+Number(s.paid_dues_count||0)+'</div><p>Pagamentos registrados no mês.</p>')+
+ card('⚖️ Pendências','<div class="command-stat">'+Number(s.compliance_pending||0)+'</div><p>Ocorrências ainda pendentes.</p>')+
+ card('📅 Próxima escala','<b>'+nextScale+'</b><p>'+Number(s.upcoming_scales||0)+' escalas nos próximos 31 dias.</p>')+
+ card('📢 Avisos obrigatórios','<div class="command-stat">'+Number(s.admin_notices_pending||0)+'</div><p>Avisos aguardando confirmação.</p>')+
+ card('🛒 Orçamentos','<div class="command-stat">'+Number(s.budget_waiting||0)+'</div><p>Itens aguardando fechamento.</p>')+
+ card('📣 Escalas publicadas','<div class="command-stat">'+Number(s.published_scales||0)+'</div><p>Escalas já publicadas para o portal.</p>')+
+ '</div>'+
+ '<div class="notice-box" style="margin-top:18px">💡 <b>Regra disciplinar:</b> pendências geram acompanhamento e podem gerar advertências, mas <b>nenhuma saída da casa é automática</b>. A decisão final permanece com a autoridade.</div>'+
+ '<div class="row-actions" style="margin-top:14px"><button class="btn gold" onclick="financeiro()">🧾 Abrir Financeiro</button><button class="btn secondary" onclick="ocorrencias()">⚖️ Ver Pendências</button><button class="btn secondary" onclick="relatorios()">📊 Relatório mensal</button></div>';
 }
 async function escala(){
  const {data:cfgs}=await sb.from('scale_configs').select('id,month_start,title,regular_time,auto_enabled,members_per_team,substitutes').order('month_start',{ascending:false});
