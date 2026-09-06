@@ -25,3 +25,17 @@ Para transformar as áreas internas em um sistema real, a próxima etapa deve us
 ## Publicação
 
 Use a branch main e a pasta raiz (/) nas configurações do GitHub Pages.
+
+## Banco de dados Supabase
+
+A base inicial do sistema está em `supabase/migrations/001_aldeia_foundation.sql`. Ela separa dados públicos dos dados internos e inclui RLS para proteger Filhos e ADM.
+
+### Próxima etapa de integração
+
+1. Abrir o projeto **Aldeia tupinamba** no Supabase.
+2. Abrir **SQL Editor** e executar o arquivo de migration acima.
+3. Criar os usuários em **Authentication** (filhos e administração) e associá-los às linhas de `profiles` e `children`.
+4. Integrar o frontend usando somente a **Project URL** e a chave pública **anon/publishable**. Nunca colocar a chave `service_role` no GitHub ou no navegador.
+5. Depois da autenticação estar ligada, substituir os registros atuais de `localStorage` por consultas ao Supabase.
+
+A migration já prepara: perfis, filhos, versões de regras, aceites versionados, escalas, equipes, avaliações de limpeza, avaliações de sexta, eventos/tarefas, mensalidades e cotas, comunicados, relatórios e configurações públicas.
