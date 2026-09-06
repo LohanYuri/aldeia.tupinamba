@@ -212,7 +212,7 @@
       if(error||!data) return;
       const settings=Object.fromEntries(data.map(x=>[x.key,x.value]));
       if(settings.whatsapp){
-        data.contact=data.contact||{};
+        window.ALDEIA_DATA.contact=window.ALDEIA_DATA.contact||{};
         window.ALDEIA_DATA.contact.whatsapp=settings.whatsapp;
       }
       if(settings.pix_key){
