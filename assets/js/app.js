@@ -222,18 +222,48 @@
 
   async function loadDonationCampaigns(){
     try{
-      const client=window.ALDEIA_SUPABASE;
-      const box=document.querySelector('#donationCampaigns');
-      if(!client||!box) return;
+      const client=window.ALDEIA_SUPABASE,box=document.querySelector('#donationCampaigns');
+      if(!client||!box)return;
       const {data,error}=await client.from('donation_campaigns').select('id,name,description,goal_amount').eq('active',true).eq('public_visible',true).order('created_at',{ascending:false});
-      if(error) throw error;
+      if(error)throw error;
       if(!data?.length){box.innerHTML='<div class="notice"><b>🤲 Doações</b><span>Em breve a casa disponibilizará novas caixinhas de apoio.</span></div>';return}
       const ids=data.map(x=>x.id);
       const {data:donations}=await client.from('donations').select('campaign_id,amount,status').in('campaign_id',ids).eq('status','recebida');
       const totals={};(donations||[]).forEach(x=>totals[x.campaign_id]=(totals[x.campaign_id]||0)+Number(x.amount||0));
-      box.innerHTML=data.map(x=>{const goal=Number(x.goal_amount||0),got=totals[x.id]||0,pct=goal?Math.min(100,(got/goal)*100):0;return '<article class="card donation-campaign-card"><div class="campaign-icon">🤲</div><h3>'+escapeHtml(x.name)+'</h3><p>'+escapeHtml(x.description||'Ajude a Aldeia nesta finalidade.')+'</p><div class="campaign-values"><b>R$ '+got.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b><span>de R$ '+goal.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span></div><div class="campaign-progress" aria-label="'+pct.toFixed(0)+'% arrecadado"><span style="width:'+pct.toFixed(1)+'%"></span></div><strong>'+pct.toFixed(0)+'% da meta</strong><button class="btn gold small" type="button" data-campaign-id="'+x.id+'">🤲 Quero ajudar</button></article>'}).join('');
-      box.querySelectorAll('[data-campaign-id]').forEach(btn=>btn.addEventListener('click',()=>{const sel=document.querySelector('[name="donationPurpose"]');const campaign=data.find(x=>x.id===btn.dataset.campaignId);if(sel&&campaign){const opt=[...sel.options].find(o=>o.textContent.includes(campaign.name));if(opt)sel.value=opt.value;else{const o=document.createElement('option');o.textContent=campaign.name;o.value=campaign.name;sel.appendChild(o);sel.value=campaign.name}}document.querySelector('#donationForm')?.scrollIntoView({behavior:'smooth',block:'center'})}));
+      box.innerHTML=data.map(x=>{
+        const goal=Number(x.goal_amount||0),got=totals[x.id]||0,pct=goal?Math.min(100,(got/goal)*100):0;
+        return '<article class="card donation-campaign-card"><div class="campaign-icon">🤲</div><h3>'+escapeHtml(x.name)+'</h3><p>'+escapeHtml(x.description||'Ajude a Aldeia nesta finalidade.')+'</p><div class="campaign-values"><b>R$ '+got.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b><span>meta R$ '+goal.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span></div><div class="campaign-progress"><span style="width:'+pct.toFixed(1)+'%"></span></div><strong>'+pct.toFixed(0)+'% da meta</strong><button class="btn gold small" type="button" data-campaign-id="'+x.id+'">🤲 Quero ajudar</button></article>'
+      }).join('');
+      box.querySelectorAll('[data-campaign-id]').forEach(btn=>btn.addEventListener('click',()=>{
+        const campaign=data.find(x=>x.id===btn.dataset.campaignId);
+        const sel=document.querySelector('[name="donationPurpose"]');
+        if(sel&&campaign){
+          let opt=[...sel.options].find(o=>o.dataset.campaignId===campaign.id);
+          if(!opt){opt=document.createElement('option');opt.value=campaign.id;opt.dataset.campaignId=campaign.id;opt.textContent=campaign.name;sel.appendChild(opt)}
+          sel.value=campaign.id;
+        }
+        document.querySelector('#donationForm')?.scrollIntoView({behavior:'smooth',block:'center'});
+      }));
     }catch(e){console.warn('Campanhas de doação indisponíveis',e)}
+  }
+
+  async function registerDonationRequest(form){
+    try{
+      const client=window.ALDEIA_SUPABASE;
+      if(!client)return;
+      const value=Number(String(form.donationValue.value||'').replace('.','').replace(',','.'));
+      const campaignId=form.donationPurpose.value;
+      if(!value||value<=0||!campaignId)return;
+      const phone=(form.whatsapp?.value||'').replace(/\D/g,'')||null;
+      const note=form.donationNote?.value||null;
+      const {data,error}=await client.from('donations').insert({
+        donor_name:'Aguardando identificação',
+        amount:value,campaign_id:campaignId,payment_method:'pix',
+        status:'pendente',whatsapp_phone:phone,notes:note,auto_identified:false
+      }).select('id').single();
+      if(error)throw error;
+      form.dataset.donationId=data.id;
+    }catch(e){console.warn('Não foi possível registrar a intenção de doação',e)}
   }
 
   async function syncPortalContent(){
