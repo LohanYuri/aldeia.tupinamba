@@ -26,6 +26,17 @@
 .muted{color:#777}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eee;font-size:12px}.success{background:#e7f7ed;color:#176c38}.warn{background:#fff4d9;color:#77540a}.error{background:#ffe9e9;color:#9b1c1c}
 .notice-box{padding:12px;border-radius:11px;background:#fff7df;margin:9px 0}.danger{border-color:#d88!important;background:#fff3f3!important}.money{font-size:21px;font-weight:800;color:#176c38}.row-actions{display:flex;gap:7px;flex-wrap:wrap}.checklist label{display:flex;gap:8px;align-items:center;margin:8px 0;font-weight:600}.mini{font-size:12px}.whatsapp{background:#e7f7ed;border:1px solid #9ad3ad;border-radius:14px;padding:14px}.ack{border:1px solid #ddd;border-radius:12px;padding:12px;margin:8px 0}.ack.ok{background:#edf9f0}.scale-date-row{display:grid;grid-template-columns:1.2fr 2fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}.scale-date-row input{padding:9px;border:1px solid #ddd;border-radius:8px}.hidden{display:none!important}.accountability-critical{border-left:4px solid #b9891f}
 .command-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.command-quick .btn{width:100%}
+.command-attention{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.command-attention .attention-item{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid #e6dfd0;border-radius:12px;background:#fff}
+.command-attention .attention-item strong{display:block;margin-bottom:3px}
+.command-dashboard-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.command-dashboard-head .lead{margin:4px 0 0}
+.command-recent{margin-top:14px}
+.command-recent-list{display:grid;gap:7px}
+.command-recent-item{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #eee}
+.command-recent-item:last-child{border-bottom:0}
+@media(max-width:760px){.command-attention{grid-template-columns:1fr}.command-recent-item{display:block}.command-recent-item small{display:block;margin-top:3px}}
+
 @media(max-width:1000px){.command-nav{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.command-nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:8px}.command-form{grid-template-columns:1fr}.command-quick{grid-template-columns:1fr}.command-hero{padding:17px;border-radius:16px}}
 @media(max-width:520px){.command-nav{grid-template-columns:1fr}.nav-group{padding:7px}.command-nav button{padding:9px}.command-grid{grid-template-columns:1fr}}
@@ -114,23 +125,63 @@ async function integracoes(){
  '<h3>🔗 Webhook WhatsApp</h3><div class="ack"><b>Endpoint:</b> <code>/functions/v1/whatsapp-webhook</code><p>O endpoint está publicado no Supabase. Na Meta/WhatsApp Business, use este endpoint e cadastre o token de verificação e o App Secret como Secrets do Supabase.</p><p><b>Verify Token:</b> <code>WHATSAPP_VERIFY_TOKEN</code><br><b>App Secret:</b> <code>WHATSAPP_APP_SECRET</code></p><p class="mini">Nunca coloque senha, token ou App Secret diretamente no código do portal.</p></div>';
 }
 async function dashboard(){
- const {data:summary,error}=await sb.rpc('commander_dashboard_summary',{p_month:today().slice(0,7)+'-01'});
- if(error){view.innerHTML='<div class="notice-box error">Não foi possível carregar o resumo do Comandante: '+esc(error.message)+'</div>';return}
+ const ref=today().slice(0,7)+'-01';
+ const [{data:summary,error},{data:notices},{data:attention},{data:recentAudit}]=await Promise.all([
+  sb.rpc('commander_dashboard_summary',{p_month:ref}),
+  sb.from('admin_notices').select('id,title,event_date,event_time,mandatory,published,created_at').eq('published',true).order('created_at',{ascending:false}).limit(5),
+  sb.from('child_accountability_summary').select('child_id,full_name,active,points,pending_financial,unexcused_absences,cleaning_pending,warnings').eq('active',true).order('points',{ascending:false}).limit(8),
+  sb.from('audit_logs').select('created_at,action,entity,details').order('created_at',{ascending:false}).limit(6)
+ ]);
+ if(error){
+  view.innerHTML='<div class="notice-box error">Não foi possível carregar o resumo do Comandante: '+esc(error.message)+'</div>';
+  return;
+ }
  const s=summary||{};
  const next=s.next_scale;
  const nextScale=next?esc(next.date)+' • '+esc((next.time||'').slice(0,5)||'sem horário'):'Nenhuma escala próxima';
- view.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap"><div><h2>Visão geral</h2><p class="lead">Resumo rápido do Comando Geral. Para alterar qualquer informação, entre na área correspondente abaixo.</p></div><span class="pill success">👑 Comandante Geral</span></div>'+
+ const activeChildren=Number(s.active_children||0);
+ const pendingAmount=Number(s.pending_dues_amount||0);
+ const pendingCount=Number(s.pending_dues_count||0);
+ const complianceCount=Number(s.compliance_pending||0);
+ const noticeCount=Number(s.admin_notices_pending||0);
+ const attentionRows=(attention||[]).filter(x=>Number(x.points||0)>0||Number(x.warnings||0)>0||Number(x.pending_financial||0)>0||Number(x.unexcused_absences||0)>0||Number(x.cleaning_pending||0)>0);
+ const recent=(recentAudit||[]).map(x=>{
+   const label=String(x.action||'ação').replaceAll('_',' ');
+   return '<div class="command-recent-item"><b>'+esc(label)+'</b><small class="muted">'+new Date(x.created_at).toLocaleString('pt-BR')+'</small></div>';
+ }).join('');
+ const noticeList=(notices||[]).slice(0,4).map(n=>{
+   const when=[n.event_date,n.event_time?String(n.event_time).slice(0,5):''].filter(Boolean).join(' • ');
+   return '<div class="attention-item"><span>🚨</span><div><strong>'+esc(n.title)+'</strong><div class="mini muted">'+esc(when||'Aviso publicado')+(n.mandatory?' • ciência obrigatória':'')+'</div></div></div>';
+ }).join('');
+ const attentionList=attentionRows.slice(0,6).map(x=>{
+   const reasons=[];
+   if(Number(x.pending_financial||0)>0) reasons.push('financeiro');
+   if(Number(x.unexcused_absences||0)>0) reasons.push('faltas');
+   if(Number(x.cleaning_pending||0)>0) reasons.push('responsabilidades');
+   if(Number(x.warnings||0)>0) reasons.push(Number(x.warnings)+' advertência(s)');
+   return '<div class="attention-item"><span>🟡</span><div><strong>'+esc(x.full_name)+'</strong><div class="mini muted">'+esc(reasons.join(' • ')||'Acompanhamento')+' • '+Number(x.points||0)+' ponto(s)</div></div></div>';
+ }).join('');
+
+ view.innerHTML='<div class="command-dashboard-head"><div><h2>Visão geral</h2><p class="lead">Resumo operacional do Comando Geral. As áreas abaixo permitem alterar os dados sem mexer na estrutura do portal.</p></div><span class="pill success">👑 Comandante Geral</span></div>'+
  '<div class="command-grid">'+
- card('👥 Filhos ativos','<div class="command-stat">'+Number(s.active_children||0)+'</div><p>Cadastros ativos.</p>')+
- card('💰 A receber','<div class="money">'+money(s.pending_dues_amount)+'</div><p>'+Number(s.pending_dues_count||0)+' cobranças pendentes.</p>')+
- card('⚖️ Pendências','<div class="command-stat">'+Number(s.compliance_pending||0)+'</div><p>Ocorrências em acompanhamento.</p>')+
- card('📅 Próxima escala','<b>'+nextScale+'</b><p>'+Number(s.upcoming_scales||0)+' escalas nos próximos 31 dias.</p>')+
- card('🚨 Avisos ADM','<div class="command-stat">'+Number(s.admin_notices_pending||0)+'</div><p>Aguardando confirmação.</p>')+
- card('👀 Visitas hoje','<div class="command-stat" id="visToday">—</div><p>Visitantes únicos registrados.</p>')+
+ card('👥 Filhos ativos','<div class="command-stat">'+activeChildren+'</div><p>Cadastros que participam das rotinas e novas escalas.</p>')+
+ card('💰 A receber','<div class="money">'+money(pendingAmount)+'</div><p>'+pendingCount+' cobrança(s) pendente(s).</p>')+
+ card('⚖️ Pendências','<div class="command-stat">'+complianceCount+'</div><p>Ocorrências ou responsabilidades em acompanhamento.</p>')+
+ card('📅 Próxima escala','<b>'+nextScale+'</b><p>'+Number(s.upcoming_scales||0)+' escala(s) nos próximos 31 dias.</p>')+
+ card('🚨 Avisos ADM','<div class="command-stat">'+noticeCount+'</div><p>Aguardando ciência ou acompanhamento.</p>')+
+ card('👀 Visitas hoje','<div class="command-stat" id="visToday">—</div><p>Visitantes únicos registrados no portal.</p>')+
  '</div>'+
- '<div class="notice-box" style="margin-top:14px">🔐 <b>Regra de acesso:</b> somente o Comandante Geral cria usuários, define senhas, altera permissões, bloqueia e remove acessos. As ações administrativas ficam registradas na auditoria.</div>'+
- '<div class="command-quick"><button class="btn gold" onclick="financeiro()">🧾 Financeiro</button><button class="btn secondary" onclick="membros()">👥 Gerenciar filhos</button><button class="btn secondary" onclick="document.querySelector(\'#nav button[onclick*=editorPortal]\')?.click()">🎨 Editar portal</button></div>'+
- '<div class="notice-box" style="margin-top:10px">💡 <b>WhatsApp:</b> a conexão permanece separada e não será ativada nesta etapa.</div>';
+ '<div class="command-attention">'+
+ '<div class="command-card"><h3>🔔 O que precisa da sua atenção</h3><p class="mini muted">Prioridades detectadas automaticamente.</p>'+
+ (attentionList||'<div class="attention-item"><span>🟢</span><div><strong>Nenhuma pendência crítica encontrada</strong><div class="mini muted">A casa está sem itens prioritários no momento.</div></div></div>')+
+ '</div>'+
+ '<div class="command-card"><h3>📢 Últimos avisos publicados</h3><p class="mini muted">Comunicados mais recentes para os ADMs.</p>'+
+ (noticeList||'<div class="attention-item"><span>🟢</span><div><strong>Nenhum aviso publicado</strong><div class="mini muted">Quando o Comandante publicar um aviso, ele aparecerá aqui.</div></div></div>')+
+ '</div></div>'+
+ '<div class="notice-box" style="margin-top:14px">🔐 <b>Regra de acesso:</b> somente o Comandante Geral cria usuários, define ou redefine senhas, altera permissões, bloqueia e remove acessos. As ações administrativas ficam registradas na auditoria.</div>'+
+ '<div class="command-quick"><button class="btn gold" onclick="financeiro()">🧾 Financeiro</button><button class="btn secondary" onclick="membros()">👥 Gerenciar filhos</button><button class="btn secondary" onclick="go(\'editorPortal\',this)">🎨 Editar portal</button></div>'+
+ '<div class="command-card command-recent"><h3>🛡️ Atividade administrativa recente</h3><div class="command-recent-list">'+(recent||'<span class="muted">Nenhuma ação registrada recentemente.</span>')+'</div></div>'+
+ '<div class="notice-box" style="margin-top:10px">💡 <b>WhatsApp:</b> a conexão permanece separada e não será ativada nesta etapa. O portal continua funcionando normalmente sem essa integração.</div>';
  portalStats();
 }
 async function escala(){
