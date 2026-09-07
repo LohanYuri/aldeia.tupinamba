@@ -35,7 +35,7 @@ async function init(){
  nav.innerHTML=[
  ['dashboard','🏠 Geral'],['escala','📅 Escala automática'],['membros','👥 Filhos'],['logins','🔐 Logins ADM'],
  ['avisos','🚨 Avisos ADM'],['portal','📢 Portal'],['financeiro','🧾 Cotas/Mensalidades'],
- ['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['integracoes','📲 Integrações'],['ocorrencias','⚖️ Ocorrências'],['relatorios','📊 Relatório mensal'],['regras','📜 Regras/PIX'],['auditoria','🛡️ Auditoria']
+ ['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['integracoes','📲 Integrações'],['ocorrencias','⚖️ Ocorrências'],['relatorios','📊 Relatório mensal'],['regras','📜 Regras/PIX'],['auditoria','🛡️ Auditoria']
  ].map((x,i)=>'<button class="'+(i?'':'active')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('');
  await loadBase();dashboard();
 }
@@ -46,7 +46,7 @@ async function loadBase(){
  ]);
  children=c.data||[];users=u.data||[];
 }
-function go(k,b){document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,campanhasDoacao,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard)()}
+function go(k,b){document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,campanhasDoacao,conciliacaoDoacoes,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard)()}
 function card(t,b){return '<article class="command-card"><h3>'+t+'</h3>'+b+'</article>'}
 async function audit(action,entity,entity_id,details){await sb.from('audit_logs').insert({actor_id:me.id,action,entity,entity_id:entity_id||null,details:details||{}})}
 async function portalStats(){
@@ -292,6 +292,29 @@ async function editarCampanha(id){
  const x=data;
  view.innerHTML='<h2>✏️ Editar caixinha</h2><form id="cef" class="command-form"><label>Nome<input name="name" required value="'+esc(x.name)+'"></label><label>Meta (R$)<input name="goal_amount" type="number" min="0" step="0.01" value="'+Number(x.goal_amount||0)+'"></label><label class="full">Descrição<textarea name="description" rows="3">'+esc(x.description||'')+'</textarea></label><label><input name="active" type="checkbox" '+(x.active?'checked':'')+'> Ativa</label><label><input name="public_visible" type="checkbox" '+(x.public_visible?'checked':'')+'> Mostrar no portal</label><div class="full"><button class="btn gold">Salvar alterações</button><button type="button" class="btn secondary" onclick="campanhasDoacao()">Cancelar</button></div></form>';
  document.getElementById('cef').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const q=await sb.from('donation_campaigns').update({name:d.name,description:d.description||null,goal_amount:Number(d.goal_amount),active:e.target.active.checked,public_visible:e.target.public_visible.checked}).eq('id',id);if(q.error){msg(q.error);return}await audit('update_donation_campaign','donation_campaigns',id,{name:d.name,goal_amount:Number(d.goal_amount)});campanhasDoacao()}
+}
+async function conciliacaoDoacoes(){
+ const {data,error}=await sb.from('donations').select('id,donor_name,amount,donation_date,payment_method,reference,status,whatsapp_phone,pix_txid,proof_path,auto_identified,campaign_id,notes,created_at,donation_campaigns(name)').order('created_at',{ascending:false}).limit(500);
+ if(error){msg(error);return}
+ const rows=data||[],received=rows.filter(x=>x.status==='recebida'),pending=rows.filter(x=>x.status==='pendente');
+ view.innerHTML='<div class="section-head"><div><h2>🧾 Conciliação de Doações</h2><p class="lead">Confira Pix, comprovantes e identificação antes de confirmar uma entrada.</p></div><button class="btn secondary" onclick="conciliacaoDoacoes()">↻ Atualizar</button></div><div class="command-grid">'+card('🟢 Recebidas','<div class="command-stat">'+received.length+'</div>')+card('🔴 Aguardando','<div class="command-stat">'+pending.length+'</div>')+card('💰 Total recebido','<div class="money">'+money(received.reduce((s,x)=>s+Number(x.amount||0),0))+'</div>')+'</div><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Data</th><th>Doador</th><th>Valor</th><th>Destino</th><th>Pix</th><th>WhatsApp</th><th>Status</th><th>Ação</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+esc(x.donation_date||'—')+'</td><td><b>'+esc(x.donor_name||'Aguardando')+'</b></td><td>'+money(x.amount)+'</td><td>'+esc(x.donation_campaigns?.name||'—')+'</td><td>'+esc(x.pix_txid||'—')+'</td><td>'+esc(x.whatsapp_phone||'—')+'</td><td><span class="pill '+(x.status==='recebida'?'success':x.status==='pendente'?'warn':'error')+'">'+esc(x.status)+'</span>'+(x.auto_identified?' <small>🤖</small>':'')+'</td><td><button class="btn secondary small" onclick="verDoacao(\\''+x.id+'\\')">🔎 Ver</button></td></tr>').join('')+'</tbody></table></div>';
+}
+async function verDoacao(id){
+ const {data,error}=await sb.from('donations').select('*,donation_campaigns(name)').eq('id',id).single();if(error){msg(error);return}
+ const x=data;
+ view.innerHTML='<h2>🔎 Doação</h2><div class="ack"><p><b>Doador:</b> '+esc(x.donor_name)+'</p><p><b>Valor:</b> '+money(x.amount)+'</p><p><b>Destino:</b> '+esc(x.donation_campaigns?.name||'—')+'</p><p><b>WhatsApp:</b> '+esc(x.whatsapp_phone||'—')+'</p><p><b>TXID Pix:</b> '+esc(x.pix_txid||'—')+'</p><p><b>Referência:</b> '+esc(x.reference||'—')+'</p><p><b>Status:</b> '+esc(x.status)+'</p><p><b>Identificação automática:</b> '+(x.auto_identified?'Sim':'Não')+'</p><p><b>Comprovante:</b> '+(x.proof_path?'<code>'+esc(x.proof_path)+'</code>':'Ainda não recebido')+'</p><p><b>Observações:</b> '+esc(x.notes||'—')+'</p></div><div class="notice-box">⚠️ Comprovante enviado por WhatsApp não significa pagamento confirmado. A confirmação financeira deve vir do Pix/Nubank ou do procedimento de conferência autorizado pela casa.</div><div><button class="btn gold" onclick="confirmarDoacao(\\''+x.id+'\\')">✅ Confirmar recebimento</button> <button class="btn secondary" onclick="rejeitarDoacao(\\''+x.id+'\\')">❌ Marcar não conciliada</button> <button class="btn secondary" onclick="conciliacaoDoacoes()">Voltar</button></div>';
+}
+async function confirmarDoacao(id){
+ const motivo=prompt('Confirma o recebimento desta doação? Informe a conferência ou referência:');
+ if(motivo===null)return;if(!motivo.trim()){alert('Informe a referência da conferência.');return}
+ const {data,error}=await sb.from('donations').update({status:'recebida',reference:motivo.trim()}).eq('id',id).select().single();if(error){msg(error);return}
+ await audit('confirm_donation','donations',id,{reference:motivo.trim()});conciliacaoDoacoes()
+}
+async function rejeitarDoacao(id){
+ const motivo=prompt('Informe o motivo para deixar esta doação não conciliada:');
+ if(motivo===null)return;if(!motivo.trim()){alert('O motivo é obrigatório.');return}
+ const {error}=await sb.from('donations').update({status:'pendente',notes:motivo.trim()}).eq('id',id);if(error){msg(error);return}
+ await audit('reject_donation','donations',id,{reason:motivo.trim()});conciliacaoDoacoes()
 }
 async function doacoes(){
  const {data}=await sb.from('donations').select('id,donor_name,amount,donation_date,payment_method,reference,status,notes,created_at,profiles(full_name)').order('donation_date',{ascending:false}).limit(300);
