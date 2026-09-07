@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Editor do Portal | Aldeia Tupinambá</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+.editor{max-width:1180px;margin:auto;padding:28px 18px 70px}.editor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}.editor-card{background:rgba(255,255,255,.94);border:1px solid #ddd6c7;border-radius:18px;padding:20px;box-shadow:0 10px 28px rgba(0,0,0,.06)}.editor-card h2{margin:0 0 8px}.editor-card p.help{font-size:.9rem;opacity:.72}.editor-card label{display:block;margin:12px 0}.editor-card input,.editor-card textarea,.editor-card select{width:100%;box-sizing:border-box}.full{grid-column:1/-1}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}.media-list,.record-list{display:grid;gap:10px;margin-top:14px}.record{border:1px solid #ddd6c7;border-radius:12px;padding:12px;background:#fff}.record img{width:100%;max-height:180px;object-fit:cover;border-radius:10px}.muted{opacity:.65}.danger{border-color:#9d3838!important;color:#8b2525!important}.status{position:sticky;top:0;z-index:5;padding:10px 14px;border-radius:0 0 12px 12px;background:#173b2d;color:white}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.tab{cursor:pointer}.panel-section{display:none}.panel-section.active{display:block}.check{display:flex!important;gap:8px;align-items:center}.check input{width:auto}
+</style>
+</head>
+<body class="internal">
+<header class="top"><a class="brand" href="index.html"><span class="brand-mark">✦</span><span><b>Aldeia Tupinambá</b><small>Editor do Portal</small></span></a><div style="display:flex;gap:10px"><a href="index.html">Ver portal</a><button class="btn secondary" onclick="sair()">Sair</button></div></header>
+<main class="editor">
+<div id="status" class="status">Carregando editor...</div>
+<div class="panel-head"><div><span class="eyebrow">CENTRAL DE COMANDO</span><h1>Editor completo do Portal</h1><p class="lead">O Comandante altera o conteúdo, visual, eventos, avisos, campanhas e mídias sem editar código ou estrutura.</p></div></div>
+<div class="tabs">
+<button class="btn tab gold" data-tab="identidade">Identidade</button>
+<button class="btn tab" data-tab="visual">Visual e capa</button>
+<button class="btn tab" data-tab="conteudo">Conteúdo</button>
+<button class="btn tab" data-tab="eventos">Eventos</button>
+<button class="btn tab" data-tab="avisos">Avisos</button>
+<button class="btn tab" data-tab="doacoes">Doações</button>
+<button class="btn tab" data-tab="midias">Mídias</button>
+</div>
+
+<section id="identidade" class="panel-section active">
+<div class="editor-grid">
+<article class="editor-card"><h2>🏠 Identidade da casa</h2><p class="help">Tudo abaixo aparece automaticamente no portal.</p>
+<label>Nome do portal<input id="site_name"></label><label>Subtítulo<input id="site_subtitle"></label><label>Cidade / estado<input id="site_city"></label><label>Endereço<input id="site_address"></label>
+<div class="actions"><button class="btn gold" onclick="saveSettings(['site_name','site_subtitle','site_city','site_address'])">Salvar identidade</button></div></article>
+<article class="editor-card"><h2>📲 Contato e redes</h2>
+<label>WhatsApp (somente números)<input id="whatsapp" placeholder="556799342405"></label><label>WhatsApp exibido<input id="whatsapp_display"></label><label>Instagram<input id="instagram" placeholder="https://instagram.com/..."></label><label>Facebook<input id="facebook" placeholder="https://facebook.com/..."></label>
+<div class="actions"><button class="btn gold" onclick="saveSettings(['whatsapp','whatsapp_display','instagram','facebook'])">Salvar contatos</button></div></article>
+<article class="editor-card"><h2>🕰️ Horários</h2><label>Segunda a quinta<input id="private_hours"></label><label>Sexta-feira<input id="friday_hours"></label><div class="actions"><button class="btn gold" onclick="saveSettings(['private_hours','friday_hours'])">Salvar horários</button></div></article>
+</div></section>
+
+<section id="visual" class="panel-section">
+<div class="editor-grid">
+<article class="editor-card"><h2>🎨 Aparência</h2><p class="help">Troque o fundo sem tocar no CSS. Use a biblioteca de mídias para enviar uma imagem e depois selecione a URL.</p>
+<label>Cor de fundo<input id="background_color" type="color"></label><label>Imagem de fundo (URL)<input id="background_image" placeholder="Cole ou selecione uma mídia"></label><label>Imagem principal da capa (URL)<input id="hero_image"></label><label>Logo (URL)<input id="logo_image"></label>
+<div class="actions"><button class="btn gold" onclick="saveSettings(['background_color','background_image','hero_image','logo_image'])">Aplicar visual</button></div></article>
+<article class="editor-card"><h2>💰 PIX</h2><label>Chave PIX<input id="pix_key"></label><label>Texto da doação<textarea id="donation_note" rows="5"></textarea></label><div class="actions"><button class="btn gold" onclick="saveSettings(['pix_key','donation_note'])">Salvar PIX</button></div></article>
+<article class="editor-card"><h2>📝 Rodapé</h2><label>Texto do rodapé<textarea id="site_footer" rows="4"></textarea></label><div class="actions"><button class="btn gold" onclick="saveSettings(['site_footer'])">Salvar rodapé</button></div></article>
+</div></section>
+
+<section id="conteudo" class="panel-section">
+<div class="editor-grid">
+<article class="editor-card"><h2>🌟 Capa</h2><label>Texto superior<input id="inicio_eyebrow"></label><label>Título<input id="inicio_title"></label><label>Texto<input id="inicio_lead"></label><div class="actions"><button class="btn gold" onclick="saveContent('inicio',['eyebrow','title','lead'])">Salvar capa</button></div></article>
+<article class="editor-card"><h2>🏡 A Aldeia</h2><label>Título<input id="aldeia_title"></label><label>Texto<textarea id="aldeia_body" rows="6"></textarea></label><div class="actions"><button class="btn gold" onclick="saveContent('aldeia',['title','body'])">Salvar A Aldeia</button></div></article>
+<article class="editor-card"><h2>🔮 Doutrina</h2><label>Título<input id="doutrina_title"></label><label>Texto<textarea id="doutrina_body" rows="6"></textarea></label><div class="actions"><button class="btn gold" onclick="saveContent('doutrina',['title','body'])">Salvar Doutrina</button></div></article>
+<article class="editor-card"><h2>📖 Consultas</h2><label>Título<input id="consultas_title"></label><label>Texto<textarea id="consultas_body" rows="6"></textarea></label><div class="actions"><button class="btn gold" onclick="saveContent('consultas',['title','body'])">Salvar Consultas</button></div></article>
+<article class="editor-card"><h2>📢 Avisos padrão</h2><label>Título<input id="avisos_title"></label><label>Texto<textarea id="avisos_body" rows="6"></textarea></label><div class="actions"><button class="btn gold" onclick="saveContent('avisos',['title','body'])">Salvar Avisos</button></div></article>
+<article class="editor-card"><h2>📞 Contato</h2><label>Título<input id="contato_title"></label><label>Texto<textarea id="contato_body" rows="5"></textarea></label><div class="actions"><button class="btn gold" onclick="saveContent('contato',['title','body'])">Salvar Contato</button></div></article>
+<article class="editor-card full"><h2>📜 Regras da casa</h2><label>Título<input id="rules_title"></label><label>Versão<input id="rules_version"></label><label>Regras — uma regra por parágrafo<textarea id="rules_body" rows="14"></textarea></label><div class="actions"><button class="btn gold" onclick="saveRules()">Publicar regras</button></div></article>
+</div></section>
+
+<section id="eventos" class="panel-section">
+<div class="editor-grid"><article class="editor-card"><h2>🎉 Novo evento</h2><label>Nome<input id="event_title"></label><label>Data<input id="event_date" type="date"></label><label>Horário<input id="event_time" type="time"></label><label>Descrição<textarea id="event_description" rows="6"></textarea></label><label class="check"><input id="event_active" type="checkbox" checked> Publicar no portal</label><button class="btn gold" onclick="createEvent()">Adicionar evento</button></article><article class="editor-card full"><h2>Eventos cadastrados</h2><div id="eventsList" class="record-list"></div></article></div></section>
+
+<section id="avisos" class="panel-section">
+<div class="editor-grid"><article class="editor-card"><h2>📢 Novo comunicado</h2><label>Título<input id="notice_title"></label><label>Mensagem<textarea id="notice_body" rows="6"></textarea></label><label class="check"><input id="notice_published" type="checkbox" checked> Publicar</label><button class="btn gold" onclick="createNotice()">Publicar aviso</button></article><article class="editor-card full"><h2>Avisos publicados</h2><div id="noticesList" class="record-list"></div></article></div></section>
+
+<section id="doacoes" class="panel-section">
+<div class="editor-grid"><article class="editor-card"><h2>🤲 Nova campanha</h2><label>Nome<input id="camp_name"></label><label>Descrição<textarea id="camp_description" rows="5"></textarea></label><label>Meta em R$<input id="camp_goal" type="number" min="0" step="0.01"></label><label class="check"><input id="camp_public" type="checkbox" checked> Visível ao público</label><label class="check"><input id="camp_active" type="checkbox" checked> Ativa</label><button class="btn gold" onclick="createCampaign()">Criar campanha</button></article><article class="editor-card full"><h2>Campanhas</h2><div id="campaignsList" class="record-list"></div></article></div></section>
+
+<section id="midias" class="panel-section">
+<div class="editor-grid"><article class="editor-card"><h2>🖼️ Biblioteca de mídias</h2><p class="help">Envie JPG, PNG, WEBP, GIF ou MP4. Até 10 MB. Depois copie a URL para fundo, capa ou logo.</p><input id="mediaFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4"><label>Título<input id="mediaTitle"></label><label>Seção<select id="mediaSection"><option value="galeria">Galeria</option><option value="capa">Capa</option><option value="fundo">Fundo</option><option value="logo">Logo</option></select></label><button class="btn gold" onclick="uploadMedia()">Enviar mídia</button></article><article class="editor-card full"><h2>Mídias enviadas</h2><div id="mediaList" class="media-list"></div></article></div></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="assets/js/supabase-config.js"></script>
+<script>
+const sb=window.ALDEIA_SUPABASE, statusEl=document.getElementById('status');
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+function status(m){statusEl.textContent=m}
+function val(id){return $(id)?.value??''}
+function setVal(id,v){if($(id))$(id).value=v??''}
+async function init(){
+ const {data:{session}}=await sb.auth.getSession(); if(!session){location.href='login-adm.html';return}
+ const {data:p}=await sb.from('profiles').select('full_name,role').eq('id',session.user.id).maybeSingle();
+ if(!p||p.role!=='financeiro'){await sb.auth.signOut();location.href='login-adm.html';return}
+ window.USER=session.user; await Promise.all([loadSettings(),loadContent(),loadRules(),loadEvents(),loadNotices(),loadCampaigns(),loadMedia()]);status('Editor pronto. Todas as alterações publicadas aqui refletem no portal.');
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('gold'));b.classList.add('gold');document.querySelectorAll('.panel-section').forEach(s=>s.classList.remove('active'));$(b.dataset.tab).classList.add('active')});
+async function loadSettings(){const {data}=await sb.from('public_settings').select('key,value');(data||[]).forEach(x=>setVal(x.key,x.value));const {data:c}=await sb.from('site_content').select('section,content_key,title,body');(c||[]).filter(x=>x.section==='inicio').forEach(x=>setVal('inicio_'+x.content_key,x.content_key==='body'?x.body:(x.title||x.body)));const donation=(c||[]).find(x=>x.section==='doacao'&&x.content_key==='note');if(donation)setVal('donation_note',donation.body)}
+async function saveSettings(keys){for(const key of keys){const value=val(key);const {error}=await sb.from('public_settings').upsert({key,value},{onConflict:'key'});if(error){alert(error.message);return}}status('Configurações salvas e publicadas.')}
+async function loadContent(){const {data}=await sb.from('site_content').select('section,content_key,title,body').order('sort_order');(data||[]).forEach(x=>{const id=x.section+'_'+x.content_key;setVal(id,x.content_key==='body'?x.body:(x.title||x.body))})}
+async function saveContent(section,keys){for(const key of keys){const id=section+'_'+key;const v=val(id);const row={section,content_key:key,title:key==='title'?v:null,body:key==='body'?v:v,active:true,updated_by:USER.id};const {error}=await sb.from('site_content').upsert(row,{onConflict:'section,content_key'});if(error){alert(error.message);return}}status('Conteúdo salvo e publicado.')}
+async function loadRules(){const {data}=await sb.from('rule_versions').select('id,version,title,body,active').eq('active',true).order('published_at',{ascending:false}).limit(1);const r=data?.[0];if(r){setVal('rules_version',r.version);setVal('rules_title',r.title);setVal('rules_body',r.body)}}
+async function saveRules(){const version=val('rules_version')||('v'+new Date().toISOString().slice(0,10));const {data:active}=await sb.from('rule_versions').select('id').eq('active',true);if(active?.length)await sb.from('rule_versions').update({active:false}).eq('active',true);const {error}=await sb.from('rule_versions').insert({version,title:val('rules_title'),body:val('rules_body'),active:true});if(error){alert(error.message);return}status('Nova versão das regras publicada.')}
+async function createEvent(){const {error}=await sb.from('events').insert({title:val('event_title'),event_date:val('event_date'),start_time:val('event_time')||null,description:val('event_description'),active:$('event_active').checked,created_by:USER.id});if(error){alert(error.message);return}['event_title','event_date','event_time','event_description'].forEach(x=>setVal(x,''));await loadEvents();status('Evento publicado.')}
+async function loadEvents(){const {data}=await sb.from('events').select('id,title,event_date,start_time,description,active').order('event_date',{ascending:false});$('eventsList').innerHTML=(data||[]).map(x=>'<div class="record"><b>'+esc(x.title)+'</b><div>'+esc(x.event_date)+' '+esc((x.start_time||'').slice(0,5))+'</div><p>'+esc(x.description||'')+'</p><button class="btn small danger" onclick="toggleEvent(\''+x.id+'\','+(!x.active)+')">'+(x.active?'Ocultar':'Publicar')+'</button> <button class="btn small danger" onclick="deleteEvent(\''+x.id+'\')">Excluir</button></div>').join('')||'<p class="muted">Nenhum evento.</p>'}
+async function toggleEvent(id,active){await sb.from('events').update({active}).eq('id',id);loadEvents()}
+async function deleteEvent(id){if(!confirm('Excluir este evento?'))return;await sb.from('events').delete().eq('id',id);loadEvents()}
+async function createNotice(){const {error}=await sb.from('notices').insert({title:val('notice_title'),body:val('notice_body'),published:$('notice_published').checked,audience:'todos',created_by:USER.id});if(error){alert(error.message);return}setVal('notice_title','');setVal('notice_body','');await loadNotices();status('Aviso publicado.')}
+async function loadNotices(){const {data}=await sb.from('notices').select('id,title,body,published,created_at').order('created_at',{ascending:false}).limit(30);$('noticesList').innerHTML=(data||[]).map(x=>'<div class="record"><b>'+esc(x.title)+'</b><p>'+esc(x.body).replace(/\n/g,'<br>')+'</p><small>'+new Date(x.created_at).toLocaleString('pt-BR')+'</small><br><button class="btn small" onclick="toggleNotice(\''+x.id+'\','+(!x.published)+')">'+(x.published?'Ocultar':'Publicar')+'</button> <button class="btn small danger" onclick="deleteNotice(\''+x.id+'\')">Excluir</button></div>').join('')||'<p class="muted">Nenhum aviso.</p>'}
+async function toggleNotice(id,published){await sb.from('notices').update({published}).eq('id',id);loadNotices()}
+async function deleteNotice(id){if(!confirm('Excluir este aviso?'))return;await sb.from('notices').delete().eq('id',id);loadNotices()}
+async function createCampaign(){const {error}=await sb.from('donation_campaigns').insert({name:val('camp_name'),description:val('camp_description'),goal_amount:Number(val('camp_goal')||0),public_visible:$('camp_public').checked,active:$('camp_active').checked});if(error){alert(error.message);return}['camp_name','camp_description','camp_goal'].forEach(x=>setVal(x,''));await loadCampaigns();status('Campanha criada.')}
+async function loadCampaigns(){const {data}=await sb.from('donation_campaigns').select('id,name,description,goal_amount,active,public_visible').order('created_at',{ascending:false});$('campaignsList').innerHTML=(data||[]).map(x=>'<div class="record"><b>'+esc(x.name)+'</b><p>'+esc(x.description||'')+'</p><div>Meta: R$ '+Number(x.goal_amount||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div><button class="btn small" onclick="updateCampaign(\''+x.id+'\','+(!x.active)+','+x.public_visible+')">'+(x.active?'Desativar':'Ativar')+'</button> <button class="btn small" onclick="updateCampaign(\''+x.id+'', '+x.active+','+(!x.public_visible)+')">'+(x.public_visible?'Ocultar':'Mostrar')+'</button> <button class="btn small danger" onclick="deleteCampaign(\''+x.id+'\')">Excluir</button></div>').join('')||'<p class="muted">Nenhuma campanha.</p>'}
+async function updateCampaign(id,active,public_visible){await sb.from('donation_campaigns').update({active,public_visible}).eq('id',id);loadCampaigns()}
+async function deleteCampaign(id){if(!confirm('Excluir campanha?'))return;await sb.from('donation_campaigns').delete().eq('id',id);loadCampaigns()}
+async function uploadMedia(){const file=$('mediaFile').files[0];if(!file){alert('Escolha uma mídia.');return}if(file.size>10*1024*1024){alert('O arquivo ultrapassa 10 MB.');return}const safe=file.name.toLowerCase().replace(/[^a-z0-9._-]+/g,'-');const path=Date.now()+'-'+safe;const {error}=await sb.storage.from('portal-media').upload(path,file,{upsert:false,contentType:file.type});if(error){alert(error.message);return}const {data:urlData}=sb.storage.from('portal-media').getPublicUrl(path);const {error:e2}=await sb.from('portal_media').insert({section:val('mediaSection'),title:val('mediaTitle')||file.name,storage_path:path,public_url:urlData.publicUrl,media_type:file.type.startsWith('video')?'video':'image',created_by:USER.id});if(e2){alert(e2.message);return}$('mediaFile').value='';setVal('mediaTitle','');await loadMedia();status('Mídia enviada.')}
+async function loadMedia(){const {data}=await sb.from('portal_media').select('id,section,title,public_url,media_type,active,created_at').order('created_at',{ascending:false});$('mediaList').innerHTML=(data||[]).map(x=>'<div class="record">'+(x.media_type==='video'?'<video src="'+esc(x.public_url)+'" controls style="width:100%;max-height:220px"></video>':'<img src="'+esc(x.public_url)+'" alt="'+esc(x.title)+'">')+'<b>'+esc(x.title||'Sem título')+'</b><div class="muted">'+esc(x.section)+'</div><input readonly value="'+esc(x.public_url)+'"><button class="btn small" onclick="copyUrl(\''+esc(x.public_url)+'\')">Copiar URL</button> <button class="btn small danger" onclick="deleteMedia(\''+x.id+'\',\''+esc(x.storage_path||'')+'\')">Excluir</button></div>').join('')||'<p class="muted">Nenhuma mídia enviada.</p>'}
+async function copyUrl(u){try{await navigator.clipboard.writeText(u);status('URL copiada.')}catch{alert(u)}}
+async function deleteMedia(id,path){if(!confirm('Excluir esta mídia?'))return;await sb.from('portal_media').delete().eq('id',id);if(path)await sb.storage.from('portal-media').remove([path]);loadMedia()}
+async function sair(){await sb.auth.signOut();location.href='login-adm.html'}
+init();
+</script>
+</body></html>
