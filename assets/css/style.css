@@ -38,3 +38,18 @@ footer{padding:30px 7%;display:flex;justify-content:space-between;gap:20px;backg
 .scale-footer{display:flex;gap:12px;align-items:flex-start;margin-top:18px;padding:16px;border:1px solid rgba(216,174,69,.3);border-radius:12px;color:#eee7dc}.scale-footer b{color:var(--gold2)}
 .check-row{grid-column:1/-1!important;display:flex!important;justify-content:space-between;align-items:center;padding:13px 15px;background:rgba(255,255,255,.04);border:1px solid rgba(216,174,69,.22);border-radius:10px}.check-row span{display:flex;align-items:center;gap:8px}.check-row small{color:#bdb4a6}
 @media(max-width:850px){.scale-head,.scale-comms{grid-template-columns:1fr;display:grid}.scale-grid{grid-template-columns:1fr}.scale-board{padding:18px}.scale-badge{width:max-content}.scale-footer{display:block}}
+
+/* ===== CLAREZA DAS AREAS INTERNAS ===== */
+body.internal{background:#f4f1ea;color:#29251f;background-image:none}
+body.internal .top{background:#17351f;color:#fff;border-bottom:1px solid #c89b37}
+body.internal .top a,body.internal .top .brand b{color:#fff}
+body.internal .top .brand small{color:#ead9a6}
+body.internal .panel{background:transparent;color:#29251f}
+body.internal .lead{color:#655e52}
+body.internal .command-card,body.internal .module{background:#fff;color:#29251f;box-shadow:0 6px 18px rgba(48,38,20,.06)}
+body.internal .command-card p,body.internal .module p{color:#625b50}
+body.internal .command-table th{background:#f5efe1;color:#735316}
+body.internal .command-table td{background:#fff;color:#302b24}
+body.internal .command-table tr:hover td{background:#fffcf5}
+body.internal .ack{background:#fff;color:#302b24;border-color:#ded5c5}
+body.internal .notice{background:#fffaf0!important;color:#30291d!important;border-color:#d8ae45!important}
