@@ -62,3 +62,5 @@ body.internal .notice{background:#fffaf0!important;color:#30291d!important;borde
 .acceptance-card h3{margin:0;color:#302a22}.acceptance-card p{margin:4px 0;color:#71695e}
 .acceptance-list{display:grid;gap:7px}.acceptance-row{display:grid;grid-template-columns:1fr auto;gap:5px 10px;padding:9px 0;border-bottom:1px dashed #e8e0d2}.acceptance-row b{color:#4d3a16}.acceptance-row span,.acceptance-row time{font-size:12px;color:#6c655b}.acceptance-row time{grid-column:1/-1}
 @media(max-width:600px){.acceptance-grid{grid-template-columns:1fr}.acceptance-row{grid-template-columns:1fr}}
+
+.maintenance-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:25px;background:rgba(5,3,1,.94);text-align:center}.maintenance-overlay>div{max-width:650px;padding:42px;border:1px solid rgba(216,174,69,.5);border-radius:22px;background:rgba(12,8,4,.96);box-shadow:0 25px 80px #000}.maintenance-overlay h2{margin:10px 0;color:#fff}.maintenance-overlay p{color:#d8d0c4;font-size:17px}
