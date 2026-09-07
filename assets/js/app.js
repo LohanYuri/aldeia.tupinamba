@@ -359,9 +359,9 @@
       }
       document.title=(settings.site_name||window.ALDEIA_DATA.site.name||'Aldeia Tupinambá')+' | Portal Oficial';
       const root=document.documentElement;
-      if(settings.background_color)root.style.setProperty('--cms-background-color',settings.background_color);
+      if(settings.background_color)document.body.style.backgroundColor=settings.background_color;
       if(settings.background_image)document.body.style.backgroundImage='linear-gradient(rgba(0,0,0,.16),rgba(0,0,0,.16)),url("'+String(settings.background_image).replace(/"/g,'')+'")';
-      if(settings.hero_image){const hero=document.querySelector('#inicio');if(hero)hero.style.setProperty('--cms-hero-image','url("'+String(settings.hero_image).replace(/"/g,'')+'")')}
+      if(settings.hero_image){const hero=document.querySelector('#inicio');if(hero)hero.style.backgroundImage='linear-gradient(rgba(0,0,0,.22),rgba(0,0,0,.22)),url("'+String(settings.hero_image).replace(/"/g,'')+'")'}
       const logo=document.querySelector('.brand-mark');
       if(settings.logo_image&&logo){logo.textContent='';logo.style.backgroundImage='url("'+String(settings.logo_image).replace(/"/g,'')+'")';logo.style.backgroundSize='cover';logo.style.backgroundPosition='center';logo.style.width='42px';logo.style.height='42px';logo.style.borderRadius='50%';}
       if(settings.pix_key){
@@ -370,6 +370,14 @@
       }
       if(settings.private_hours) window.ALDEIA_DATA.schedule[0].text=settings.private_hours;
       if(settings.friday_hours) window.ALDEIA_DATA.schedule[1].text=settings.friday_hours;
+      document.querySelectorAll('[data-site-name]').forEach(el=>el.textContent=settings.site_name||window.ALDEIA_DATA.site.name);
+      document.querySelectorAll('[data-site-subtitle]').forEach(el=>el.textContent=settings.site_subtitle||window.ALDEIA_DATA.site.subtitle);
+      document.querySelectorAll('[data-footer-name]').forEach(el=>el.textContent=settings.site_name||window.ALDEIA_DATA.site.name);
+      document.querySelectorAll('[data-site-footer]').forEach(el=>el.textContent=settings.site_footer||'Terreiro de Umbanda • Axé, paz e luz');
+      document.querySelectorAll('[data-private-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.private_hours||'') .replace(/\\n/g,'<br>'));
+      document.querySelectorAll('[data-friday-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.friday_hours||'') .replace(/\\n/g,'<br>'));
+      document.querySelectorAll('[data-instagram]').forEach(el=>{if(settings.instagram){el.href=settings.instagram;el.style.display='inline-flex'}else el.style.display='none'});
+      document.querySelectorAll('[data-facebook]').forEach(el=>{if(settings.facebook){el.href=settings.facebook;el.style.display='inline-flex'}else el.style.display='none'});
       document.querySelectorAll("[data-whatsapp]").forEach(el=>{
         const digits=normalizeWhatsApp(settings.whatsapp||window.ALDEIA_DATA.contact.whatsapp);
         if(digits) el.href="https://wa.me/"+digits;
