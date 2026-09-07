@@ -35,7 +35,7 @@ async function init(){
  nav.innerHTML=[
  ['dashboard','🏠 Geral'],['escala','📅 Escala automática'],['membros','👥 Filhos'],['logins','🔐 Logins ADM'],
  ['avisos','🚨 Avisos ADM'],['portal','📢 Portal'],['financeiro','🧾 Cotas/Mensalidades'],
- ['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['integracoes','📲 Integrações'],['ocorrencias','⚖️ Ocorrências'],['relatorios','📊 Relatório mensal'],['regras','📜 Regras/PIX'],['auditoria','🛡️ Auditoria']
+ ['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['integracoes','📲 Integrações'],['editorPortal','🎨 Editor do Portal'],['ocorrencias','⚖️ Ocorrências'],['relatorios','📊 Relatório mensal'],['regras','📜 Regras/PIX'],['auditoria','🛡️ Auditoria']
  ].map((x,i)=>'<button class="'+(i?'':'active')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('');
  await loadBase();dashboard();
 }
@@ -46,7 +46,7 @@ async function loadBase(){
  ]);
  children=c.data||[];users=u.data||[];
 }
-function go(k,b){document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,campanhasDoacao,conciliacaoDoacoes,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard)()}
+function go(k,b){if(k==='editorPortal'){location.href='portal-editor.html';return}document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,campanhasDoacao,conciliacaoDoacoes,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard)()}
 function card(t,b){return '<article class="command-card"><h3>'+t+'</h3>'+b+'</article>'}
 async function audit(action,entity,entity_id,details){await sb.from('audit_logs').insert({actor_id:me.id,action,entity,entity_id:entity_id||null,details:details||{}})}
 async function portalStats(){
