@@ -142,7 +142,7 @@ async function init(){
  if(!p||p.role!=='financeiro'||p.active===false){await sb.auth.signOut();location.href='login-adm.html';return}
  window.USER=session.user;
  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.panel-section').forEach(s=>s.classList.remove('active'));$(b.dataset.tab).classList.add('active')});
- await Promise.all([loadSettings(),loadContent(),loadRules(),loadEvents(),loadNotices(),loadCampaigns(),loadMedia()]);
+ await Promise.all([loadSettings(),loadContent(),loadRules(),loadVisibility(),loadEvents(),loadNotices(),loadCampaigns(),loadMedia()]);
  status('Editor pronto. O Comandante controla o portal por aqui.');
 }
 async function loadSettings(){const {data,error}=await sb.from('public_settings').select('key,value');if(error){status('Erro ao carregar configurações: '+error.message);return}(data||[]).forEach(x=>setField('data-setting',x.key,x.value));}
