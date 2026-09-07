@@ -72,44 +72,45 @@
     if (!event) { toast("Nenhum evento cadastrado."); return; }
     const shareText = [
       "🎉 " + event.title,
-      "📅 " + event.date + " • " + event.time,
+      "📅 " + event.date + (event.time ? " • " + event.time : ""),
       "📍 " + event.address + " • " + event.city,
       "",
-      "Doações: doces, refrigerantes, cachorro-quente, balas e pirulitos.",
       "Aldeia Tupinambá"
     ].join("\n");
-    const ics = [
+    const parts=String(event.date||"").split("/");
+    const icsDate=parts.length===3 ? parts[2]+parts[1]+parts[0] : "";
+    const time=String(event.time||"").replace(/\D/g,"");
+    const hh=(time.slice(0,2)||"19").padStart(2,"0"), mm=(time.slice(2,4)||"00").padStart(2,"0");
+    const ics = icsDate ? [
       "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Aldeia Tupinamba//Portal//PT-BR","CALSCALE:GREGORIAN","BEGIN:VEVENT",
-      "UID:" + event.id + "@aldeia.tupinamba","DTSTAMP:20260905T120000Z","DTSTART:20260926T220000Z","DTEND:20260927T010000Z",
+      "UID:" + event.id + "@aldeia.tupinamba","DTSTAMP:" + new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d{3}Z$/,"Z"),
+      "DTSTART:"+icsDate+"T"+hh+mm+"00","DTEND:"+icsDate+"T"+hh+mm+"00",
       "SUMMARY:" + event.title,"LOCATION:" + event.address + " - " + event.city,
-      "DESCRIPTION:Doacoes: doces, refrigerantes, cachorro-quente, balas e pirulitos.",
-      "END:VEVENT","END:VCALENDAR"
-    ].join("\r\n");
+      "DESCRIPTION:Aldeia Tupinamba","END:VEVENT","END:VCALENDAR"
+    ].join("\r\n") : "";
     openModal(
       "<span class='eyebrow'>CONVITE INTERATIVO</span>" +
       "<h2>🎉 " + escapeHtml(event.title) + "</h2>" +
-      "<p><strong>📅 " + escapeHtml(event.date) + " • " + escapeHtml(event.time) + "</strong></p>" +
+      "<p><strong>📅 " + escapeHtml(event.date) + (event.time ? " • " + escapeHtml(event.time) : "") + "</strong></p>" +
       "<p>📍 " + escapeHtml(event.address) + " • " + escapeHtml(event.city) + "</p>" +
       "<div class='invite-note'><b>Você é nosso convidado!</b><br>Venha participar com respeito, fé e alegria.</div>" +
-      "<p><small>Doações para a festa: doces, refrigerantes, cachorro-quente, balas e pirulitos.</small></p>" +
       "<div class='modal-actions'>" +
-      "<button class='btn gold' id='icsBtn' type='button'>📅 Adicionar à agenda</button>" +
+      (ics ? "<button class='btn gold' id='icsBtn' type='button'>📅 Adicionar à agenda</button>" : "") +
       "<button class='btn outline' id='shareBtn' type='button'>📤 Compartilhar convite</button>" +
       "<button class='btn outline' id='eventWaBtn' type='button'>📲 Confirmar pelo WhatsApp</button>" +
       "</div>"
     );
-    $("#icsBtn")?.addEventListener("click", () => downloadICS(ics, "convite-cosme-e-damiao-2026.ics"));
-    $("#shareBtn")?.addEventListener("click", async () => {
+    $( "#icsBtn" )?.addEventListener("click", () => downloadICS(ics, "convite-"+String(event.id||"evento")+".ics"));
+    $( "#shareBtn" )?.addEventListener("click", async () => {
       if (navigator.share) await navigator.share({title:event.title,text:shareText}).catch(()=>{});
       else toast((await copyText(shareText)) ? "Convite copiado." : "Não foi possível copiar o convite.");
     });
-    $("#eventWaBtn")?.addEventListener("click", () => {
+    $( "#eventWaBtn" )?.addEventListener("click", () => {
       const target = normalizeWhatsApp(data.contact?.whatsapp);
-      const msg = "Olá! Gostaria de confirmar minha participação na Festa de São Cosme e São Damião da Aldeia Tupinambá em " + event.date + " às " + event.time + ".";
+      const msg = "Olá! Gostaria de confirmar minha participação no evento " + event.title + " da Aldeia Tupinambá em " + event.date + (event.time ? " às " + event.time : "") + ".";
       if (target) location.href = "https://wa.me/" + target + "?text=" + encodeURIComponent(msg);
     });
   };
-
   window.login = (kind) => {
     location.href = kind === "ADM" ? "login-adm.html" : "filhos.html";
   };
