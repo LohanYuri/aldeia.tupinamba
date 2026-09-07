@@ -35,7 +35,7 @@ async function init(){
  nav.innerHTML=[
  ['dashboard','🏠 Geral'],['escala','📅 Escala automática'],['membros','👥 Filhos'],['logins','🔐 Logins ADM'],
  ['avisos','🚨 Avisos ADM'],['portal','📢 Portal'],['financeiro','🧾 Cotas/Mensalidades'],
- ['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['integracoes','📲 Integrações'],['ocorrencias','⚖️ Ocorrências'],['relatorios','📊 Relatório mensal'],['regras','📜 Regras/PIX'],['auditoria','🛡️ Auditoria']
+ ['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['integracoes','📲 Integrações'],['ocorrencias','⚖️ Ocorrências'],['relatorios','📊 Relatório mensal'],['regras','📜 Regras/PIX'],['auditoria','🛡️ Auditoria']
  ].map((x,i)=>'<button class="'+(i?'':'active')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('');
  await loadBase();dashboard();
 }
@@ -46,7 +46,7 @@ async function loadBase(){
  ]);
  children=c.data||[];users=u.data||[];
 }
-function go(k,b){document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard)()}
+function go(k,b){document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,campanhasDoacao,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard)()}
 function card(t,b){return '<article class="command-card"><h3>'+t+'</h3>'+b+'</article>'}
 async function audit(action,entity,entity_id,details){await sb.from('audit_logs').insert({actor_id:me.id,action,entity,entity_id:entity_id||null,details:details||{}})}
 async function portalStats(){
@@ -274,6 +274,24 @@ async function whatsCompras(){
  const month=today().slice(0,7)+'-01';const {data}=await sb.from('finance_budget_items').select('*').eq('reference_month',month).order('category');
  const text='🛒 CHECKLIST DO FINANCEIRO — ALDEIA TUPINAMBÁ\\n\\n'+(data||[]).map(x=>'☐ '+x.category+': '+x.item_name+' — '+x.quantity+' '+(x.unit||'')+' — orçamento '+money(x.total_price)).join('\\n')+'\\n\\nTotal orçado: '+money((data||[]).reduce((s,x)=>s+Number(x.total_price||0),0));
  openWhats(text)
+}
+async function campanhasDoacao(){
+ const {data,error}=await sb.from('donation_campaigns').select('id,name,description,goal_amount,active,public_visible,created_at').order('created_at',{ascending:false});
+ if(error){msg(error);return}
+ const ids=(data||[]).map(x=>x.id);
+ const {data:ds}=ids.length?await sb.from('donations').select('campaign_id,amount,status').in('campaign_id',ids):{data:[]};
+ const totals={};(ds||[]).filter(x=>x.status==='recebida').forEach(x=>totals[x.campaign_id]=(totals[x.campaign_id]||0)+Number(x.amount||0));
+ view.innerHTML='<div class="section-head"><div><h2>🤲 Caixinhas de Doação</h2><p class="lead">Crie e gerencie as metas que aparecem no portal público.</p></div><button class="btn gold" onclick="novaCampanhaDoacao()">➕ Nova caixinha</button></div><div class="command-grid">'+(data||[]).map(x=>{const goal=Number(x.goal_amount||0),got=totals[x.id]||0,pct=goal?Math.min(100,got/goal*100):0;return card('🤲 '+esc(x.name),'<p>'+esc(x.description||'')+'</p><div class="money">'+money(got)+' <span class="mini">/ '+money(goal)+'</span></div><div class="campaign-progress"><span style="width:'+pct.toFixed(1)+'%"></span></div><p>'+pct.toFixed(0)+'% • '+(x.active?'🟢 ativa':'⏸️ pausada')+' • '+(x.public_visible?'🌐 pública':'🔒 oculta')+'</p><button class="btn secondary small" onclick="editarCampanha(\\''+x.id+'\\')">✏️ Editar</button>')}).join('')+'</div>';
+}
+function novaCampanhaDoacao(){
+ view.innerHTML='<h2>➕ Nova caixinha</h2><form id="cf" class="command-form"><label>Nome<input name="name" required placeholder="Ex.: Reforma da Aldeia"></label><label>Meta (R$)<input name="goal_amount" type="number" min="0" step="0.01" required></label><label class="full">Descrição<textarea name="description" rows="3" placeholder="Explique para que será utilizada a contribuição."></textarea></label><label><input name="active" type="checkbox" checked> Ativa</label><label><input name="public_visible" type="checkbox" checked> Mostrar no portal</label><div class="full"><button class="btn gold">Criar caixinha</button><button type="button" class="btn secondary" onclick="campanhasDoacao()">Cancelar</button></div></form>';
+ document.getElementById('cf').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const q=await sb.from('donation_campaigns').insert({name:d.name,description:d.description||null,goal_amount:Number(d.goal_amount),active:e.target.active.checked,public_visible:e.target.public_visible.checked}).select().single();if(q.error){msg(q.error);return}await audit('create_donation_campaign','donation_campaigns',q.data.id,{name:d.name,goal_amount:Number(d.goal_amount)});campanhasDoacao()}
+}
+async function editarCampanha(id){
+ const {data,error}=await sb.from('donation_campaigns').select('*').eq('id',id).single();if(error){msg(error);return}
+ const x=data;
+ view.innerHTML='<h2>✏️ Editar caixinha</h2><form id="cef" class="command-form"><label>Nome<input name="name" required value="'+esc(x.name)+'"></label><label>Meta (R$)<input name="goal_amount" type="number" min="0" step="0.01" value="'+Number(x.goal_amount||0)+'"></label><label class="full">Descrição<textarea name="description" rows="3">'+esc(x.description||'')+'</textarea></label><label><input name="active" type="checkbox" '+(x.active?'checked':'')+'> Ativa</label><label><input name="public_visible" type="checkbox" '+(x.public_visible?'checked':'')+'> Mostrar no portal</label><div class="full"><button class="btn gold">Salvar alterações</button><button type="button" class="btn secondary" onclick="campanhasDoacao()">Cancelar</button></div></form>';
+ document.getElementById('cef').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const q=await sb.from('donation_campaigns').update({name:d.name,description:d.description||null,goal_amount:Number(d.goal_amount),active:e.target.active.checked,public_visible:e.target.public_visible.checked}).eq('id',id);if(q.error){msg(q.error);return}await audit('update_donation_campaign','donation_campaigns',id,{name:d.name,goal_amount:Number(d.goal_amount)});campanhasDoacao()}
 }
 async function doacoes(){
  const {data}=await sb.from('donations').select('id,donor_name,amount,donation_date,payment_method,reference,status,notes,created_at,profiles(full_name)').order('donation_date',{ascending:false}).limit(300);
