@@ -76,7 +76,7 @@ async function init(){
   ['FINANCEIRO',['financeiro','🧾 Cotas/Mensalidades'],['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['relatorios','📊 Relatório mensal']],
   ['ESCALAS',['escala','📅 Escalas']]
  ];
- return groups.map((g,gi)=>'<details class="nav-group" '+(gi===0?'open':'')+'><summary class="nav-group-title">'+g[0]+'</summary>'+g.slice(1).map((x,i)=>'<button type="button" class="'+(gi===0&&i===0?'active':'')+'" onclick="go(\\''+x[0]+'\\',this)">'+x[1]+'</button>').join('')+'</details>').join('');
+ return groups.map((g,gi)=>'<details class="nav-group" '+(gi===0?'open':'')+'><summary class="nav-group-title">'+g[0]+'</summary>'+g.slice(1).map((x,i)=>'<button type="button" class="'+(gi===0&&i===0?'active':'')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('')+'</details>').join('');
 })();
  await loadBase();dashboard();
 }
