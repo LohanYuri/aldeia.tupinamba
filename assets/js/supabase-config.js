@@ -8,7 +8,7 @@ window.ALDEIA_SUPABASE=window.supabase.createClient(window.ALDEIA_SUPABASE_URL,w
   const sb=window.ALDEIA_SUPABASE;
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const brl=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
-  const month=()=>new Date().toISOString().slice(0,10);
+  const month=()=>new Date().toISOString().slice(0,7)+'-01';
   let box=null;
 
   function ensure(){
