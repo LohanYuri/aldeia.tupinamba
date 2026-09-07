@@ -53,3 +53,12 @@ body.internal .command-table td{background:#fff;color:#302b24}
 body.internal .command-table tr:hover td{background:#fffcf5}
 body.internal .ack{background:#fff;color:#302b24;border-color:#ded5c5}
 body.internal .notice{background:#fffaf0!important;color:#30291d!important;border-color:#d8ae45!important}
+
+/* ===== ACEITES ORGANIZADOS ===== */
+.adm-section-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
+.acceptance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.acceptance-card{background:#fff;border:1px solid #e2dacb;border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(48,38,20,.06)}
+.acceptance-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:1px solid #eee7da;padding-bottom:10px;margin-bottom:8px}
+.acceptance-card h3{margin:0;color:#302a22}.acceptance-card p{margin:4px 0;color:#71695e}
+.acceptance-list{display:grid;gap:7px}.acceptance-row{display:grid;grid-template-columns:1fr auto;gap:5px 10px;padding:9px 0;border-bottom:1px dashed #e8e0d2}.acceptance-row b{color:#4d3a16}.acceptance-row span,.acceptance-row time{font-size:12px;color:#6c655b}.acceptance-row time{grid-column:1/-1}
+@media(max-width:600px){.acceptance-grid{grid-template-columns:1fr}.acceptance-row{grid-template-columns:1fr}}
