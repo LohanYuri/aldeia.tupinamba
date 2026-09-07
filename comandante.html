@@ -419,15 +419,61 @@ async function verCiencia(id){
 function whatsAviso(id){const n=(window.__adminNotices||[]).find(x=>x.id===id);const t='🚨 AVISO DA ADMINISTRAÇÃO\\n\\n'+n.title+'\\n'+(n.event_date?'📅 '+n.event_date:'')+(n.event_time?' às '+n.event_time.slice(0,5):'')+'\\n\\n'+n.body+'\\n\\nPor favor, confirme sua ciência no portal.';openWhats(t)}
 function openWhats(text){const u='https://wa.me/?text='+encodeURIComponent(text);window.open(u,'_blank');}
 async function portal(){
- const {data}=await sb.from('notices').select('id,title,body,audience,published,created_at').order('created_at',{ascending:false}).limit(100);window.__notices=data||[];
- view.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><h2>📢 Portal e comunicados</h2><p class="lead">Publique para os filhos ou para todo o portal.</p></div><button class="btn gold" onclick="novoAvisoPortal()">+ Novo comunicado</button></div>'+
- '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Título</th><th>Público</th><th>Status</th><th>Ação</th></tr></thead><tbody>'+
- (data||[]).map(n=>'<tr><td><b>'+esc(n.title)+'</b><br>'+esc(n.body).slice(0,120)+'</td><td>'+esc(n.audience)+'</td><td><span class="pill '+(n.published?'success':'warn')+'">'+(n.published?'PUBLICADO':'RASCUNHO')+'</span></td><td><div class="row-actions"><button class="btn secondary" onclick="editarAvisoPortal(\''+n.id+'\')">Editar</button><button class="btn outline" onclick="openWhats(\''+esc('📢 '+n.title+'\\n\\n'+n.body)+'\')">WhatsApp</button></div></td></tr>').join('')+'</tbody></table></div>';
+ const [{data:rows,error},{data:acks}]=await Promise.all([
+   sb.from('admin_notices').select('id,title,body,event_date,event_time,mandatory,published,published_at,expires_at,created_at,created_by').order('created_at',{ascending:false}).limit(300),
+   sb.from('admin_notice_acknowledgements').select('notice_id,profile_id,acknowledged_at,profiles(full_name,username)')
+ ]);
+ if(error){msg(error);return}
+ window.__notices=rows||[];window.__noticeAcks=acks||[];
+ const published=(rows||[]).filter(x=>x.published), drafts=(rows||[]).filter(x=>!x.published), mandatory=published.filter(x=>x.mandatory);
+ view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">PORTAL</span><h2>📢 Comunicados e avisos</h2><p class="lead">Crie, edite, publique, agende, despublique e arquive os comunicados que aparecem para a comunidade.</p></div><button class="btn gold" onclick="novoAviso()">➕ Novo comunicado</button></div>'+
+ '<div class="notice-box accountability-critical">📢 <b>Publicação:</b> somente avisos marcados como publicados aparecem no portal. Avisos obrigatórios podem exigir ciência do usuário. Nenhum comunicado é apagado automaticamente.</div>'+
+ '<div class="command-grid">'+card('🌐 Publicados','<div class="command-stat">'+published.length+'</div><p>Visíveis no portal.</p>')+card('📝 Rascunhos','<div class="command-stat">'+drafts.length+'</div><p>Ainda não publicados.</p>')+card('⚠️ Obrigatórios','<div class="command-stat">'+mandatory.length+'</div><p>Exigem acompanhamento/ciência.</p>')+card('📋 Registros','<div class="command-stat">'+rows.length+'</div><p>Histórico preservado.</p>')+'</div>'+
+ '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Comunicado</th><th>Evento</th><th>Tipo</th><th>Status</th><th>Ciência</th><th>Ações</th></tr></thead><tbody>'+
+ (rows||[]).map(n=>{
+   const a=(acks||[]).filter(x=>x.notice_id===n.id);
+   const when=[n.event_date,n.event_time?String(n.event_time).slice(0,5):''].filter(Boolean).join(' • ');
+   return '<tr><td><b>'+esc(n.title)+'</b><br><span class="mini muted">'+esc((n.body||'').slice(0,130))+'</span></td><td>'+esc(when||'—')+'</td><td>'+(n.mandatory?'<span class="pill warn">⚠️ OBRIGATÓRIO</span>':'<span class="pill">Informativo</span>')+'</td><td><span class="pill '+(n.published?'success':'warn')+'">'+(n.published?'🌐 PUBLICADO':'📝 RASCUNHO')+'</span></td><td>'+a.length+' ciência(s)</td><td><div class="row-actions"><button class="btn secondary small" onclick="editarAviso(\\''+n.id+'\\')">✏️ Editar</button><button class="btn '+(n.published?'secondary':'gold')+' small" onclick="toggleAviso(\\''+n.id+'\\','+(n.published?'true':'false')+')">'+(n.published?'⏸️ Despublicar':'🌐 Publicar')+'</button><button class="btn secondary small" onclick="verCienciaAviso(\\''+n.id+'\\')">👁️ Ciência</button></div></td></tr>'
+ }).join('')+'</tbody></table></div>';
 }
-function novoAvisoPortal(){avisoPortalForm({})}function editarAvisoPortal(id){avisoPortalForm((window.__notices||[]).find(x=>x.id===id)||{})}
-function avisoPortalForm(n){
- view.innerHTML='<h2>📢 '+(n.id?'Editar':'Novo')+' comunicado</h2><form id="nf" class="command-form"><label>Título<input name="title" value="'+esc(n.title||'')+'" required></label><label>Público<select name="audience"><option value="todos" '+(n.audience==='todos'?'selected':'')+'>Portal + filhos</option><option value="filhos" '+(n.audience!=='todos'?'selected':'')+'>Somente filhos</option></select></label><label class="full">Texto<textarea name="body" rows="9" required>'+esc(n.body||'')+'</textarea></label><label><input type="checkbox" name="published" '+(n.published!==false?'checked':'')+'> Publicar</label><div class="full"><button class="btn gold">Salvar e publicar</button> <button class="btn secondary" type="button" onclick="portal()">Cancelar</button></div></form>';
- document.getElementById('nf').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const row={title:d.title,body:d.body,audience:d.audience,published:d.published==='on',created_by:me.id};const q=n.id?sb.from('notices').update(row).eq('id',n.id):sb.from('notices').insert(row);const {error}=await q;if(error){msg(error);return}await audit(n.id?'update_portal_notice':'create_portal_notice','notices',n.id||null,{title:d.title,audience:d.audience});portal()}
+function novoAviso(){editarAviso(null)}
+async function editarAviso(id){
+ const n=id?(window.__notices||[]).find(x=>x.id===id)||{}:{};
+ view.innerHTML='<div class="command-dashboard-head"><div><h2>📢 '+(id?'Editar comunicado':'Novo comunicado')+'</h2><p class="lead">O conteúdo pode ser alterado depois. Publicar/despublicar não apaga o histórico de ciência.</p></div><button class="btn secondary" onclick="portal()">← Voltar</button></div>'+
+ '<form id="nf" class="command-form">'+
+ '<label>Título<input name="title" required value="'+esc(n.title||'')+'" placeholder="Ex.: Trabalho desta sexta-feira"></label>'+
+ '<label>Data do evento<input name="event_date" type="date" value="'+esc(n.event_date||'')+'"></label>'+
+ '<label>Horário<input name="event_time" type="time" value="'+esc(n.event_time||'')+'"></label>'+
+ '<label>Validade<input name="expires_at" type="datetime-local" value="'+esc(n.expires_at?String(n.expires_at).slice(0,16):'')+'"><small class="muted">Opcional. Após essa data o portal pode ocultar o aviso.</small></label>'+
+ '<label class="full">Mensagem<textarea name="body" rows="9" required placeholder="Escreva o comunicado...">'+esc(n.body||'')+'</textarea></label>'+
+ '<label><input type="checkbox" name="mandatory" '+(n.mandatory?'checked':'')+'> Exigir ciência</label>'+
+ '<label><input type="checkbox" name="published" '+(n.published?'checked':'')+'> Publicar no portal</label>'+
+ '<div class="full"><button class="btn gold">💾 Salvar comunicado</button><button type="button" class="btn secondary" onclick="portal()">Cancelar</button></div></form>';
+ document.getElementById('nf').onsubmit=async e=>{
+   e.preventDefault();const d=Object.fromEntries(new FormData(e.target));
+   const row={title:d.title,body:d.body,event_date:d.event_date||null,event_time:d.event_time||null,expires_at:d.expires_at?new Date(d.expires_at).toISOString():null,mandatory:d.mandatory==='on',published:d.published==='on',published_at:d.published==='on'?(n.published_at||new Date().toISOString()):null,created_by:n.created_by||me.id};
+   const q=id?await sb.from('admin_notices').update(row).eq('id',id).select().single():await sb.from('admin_notices').insert(row).select().single();
+   if(q.error){msg(q.error);return}
+   await audit(id?'update_admin_notice':'create_admin_notice','admin_notices',id||q.data.id,{title:d.title,published:row.published,mandatory:row.mandatory});
+   portal();
+ }
+}
+async function toggleAviso(id,published){
+ const n=(window.__notices||[]).find(x=>x.id===id);if(!n)return;
+ const action=published?'despublicar':'publicar';
+ if(!confirm('Deseja '+action+' o comunicado “'+n.title+'”?'))return;
+ const row={published:!published,published_at:!published?(n.published_at||new Date().toISOString()):null};
+ const {error}=await sb.from('admin_notices').update(row).eq('id',id);
+ if(error){msg(error);return}
+ await audit(published?'unpublish_admin_notice':'publish_admin_notice','admin_notices',id,{title:n.title});
+ portal();
+}
+async function verCienciaAviso(id){
+ const n=(window.__notices||[]).find(x=>x.id===id), a=(window.__noticeAcks||[]).filter(x=>x.notice_id===id);
+ view.innerHTML='<div class="command-dashboard-head"><div><h2>👁️ Ciência do comunicado</h2><p class="lead">'+esc(n?.title||'')+'</p></div><button class="btn secondary" onclick="portal()">← Voltar</button></div>'+
+ '<div class="command-grid">'+card('👥 Total de usuários','<div class="command-stat">'+users.length+'</div>')+card('✅ Confirmaram','<div class="command-stat">'+a.length+'</div>')+card('⏳ Ainda não confirmaram','<div class="command-stat">'+Math.max(0,users.length-a.length)+'</div>')+'</div>'+
+ '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Usuário</th><th>Confirmou</th><th>Data</th></tr></thead><tbody>'+a.map(x=>'<tr><td>'+esc(x.profiles?.full_name||x.profiles?.username||'Usuário')+'</td><td>✅ Sim</td><td>'+new Date(x.acknowledged_at).toLocaleString('pt-BR')+'</td></tr>').join('')+'</tbody></table></div>'+
+ '<div class="notice-box">A ciência é apenas um registro de leitura. Ela não altera permissões nem substitui uma decisão administrativa.</div>';
 }
 async function financeiro(){
  const [{data:dues},{data:cd}]=await Promise.all([
