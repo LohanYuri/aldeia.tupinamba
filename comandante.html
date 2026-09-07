@@ -93,7 +93,7 @@ async function init(){
 }
 async function loadBase(){
  const [c,u]=await Promise.all([
-  sb.from('children').select('id,full_name,profile_id,active').order('full_name'),
+  sb.from('children').select('id,full_name,profile_id,active,phone,birth_date,house_role,notes,photo_url,joined_at,display_order').order('display_order').order('full_name'),
   sb.from('profiles').select('id,full_name,username,role,active,created_at').order('full_name')
  ]);
  children=c.data||[];users=u.data||[];
@@ -234,14 +234,86 @@ async function publicarEscala(){
 }
 async function membros(){
  await loadBase();
- view.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><h2>👥 Filhos da casa</h2><p class="lead">Ativação/desativação altera automaticamente as escalas futuras e a base de cálculo.</p></div></div>'+
- '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Nome</th><th>Login</th><th>Status</th><th>Ação</th></tr></thead><tbody>'+
- children.map(c=>'<tr><td><b>'+esc(c.full_name)+'</b></td><td>'+esc(users.find(u=>u.id===c.profile_id)?.username||'Sem login')+'</td><td><span class="pill '+(c.active?'success':'warn')+'">'+(c.active?'ATIVO':'DESATIVADO')+'</span></td><td><button class="btn '+(c.active?'secondary':'gold')+'" onclick="toggleMembro(\''+c.id+'\','+(c.active?'true':'false')+')">'+(c.active?'Desativar':'Reativar')+'</button></td></tr>').join('')+'</tbody></table></div>'+
- '<div class="notice-box">⚠️ Desativar um filho <b>não apaga histórico</b>. Ele apenas deixa de participar de novas escalas automáticas e da contagem dos próximos rateios.</div>';
+ const activeCount=children.filter(c=>c.active).length;
+ const linkedCount=children.filter(c=>c.profile_id).length;
+ view.innerHTML='<div class="command-dashboard-head"><div><h2>👥 Filhos da casa</h2><p class="lead">Cadastro completo dos filhos. O Comandante pode editar os dados, ativar/desativar, organizar a ordem e vincular um acesso sem apagar histórico.</p></div><button class="btn gold" onclick="novoMembro()">+ Adicionar filho</button></div>'+
+ '<div class="command-grid">'+
+ card('👥 Ativos','<div class="command-stat">'+activeCount+'</div><p>Participam das rotinas e novas escalas.</p>')+
+ card('🔐 Com acesso','<div class="command-stat">'+linkedCount+'</div><p>Cadastros vinculados a um login.</p>')+
+ card('⏸️ Inativos','<div class="command-stat">'+(children.length-activeCount)+'</div><p>Histórico preservado.</p>')+
+ '</div>'+
+ '<div class="command-card" style="margin-top:14px"><div class="command-form"><label>🔎 Buscar filho<input id="childSearch" placeholder="Digite o nome, função ou telefone..." oninput="filtrarMembros()"></label><label>Status<select id="childStatus" onchange="filtrarMembros()"><option value="todos">Todos</option><option value="ativos">Ativos</option><option value="inativos">Inativos</option></select></label></div></div>'+
+ '<div id="membersList" class="command-grid" style="margin-top:14px"></div>'+
+ '<div class="notice-box">🔐 <b>Regra do Comando:</b> o Comandante Geral é quem cria, redefine, bloqueia e remove acessos. Desativar um filho não apaga pagamentos, escalas, ocorrências ou histórico.</div>';
+ window.__memberRows=children;
+ filtrarMembros();
+}
+function filtrarMembros(){
+ const q=String(document.getElementById('childSearch')?.value||'').toLowerCase().trim();
+ const st=document.getElementById('childStatus')?.value||'todos';
+ const rows=(window.__memberRows||[]).filter(c=>{
+   const hay=[c.full_name,c.house_role,c.phone,c.notes].join(' ').toLowerCase();
+   return (!q||hay.includes(q))&&(st==='todos'||(st==='ativos'?c.active:!c.active));
+ });
+ const box=document.getElementById('membersList');if(!box)return;
+ box.innerHTML=rows.map(c=>{
+   const u=users.find(x=>x.id===c.profile_id);
+   const initials=esc(String(c.full_name||'').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase());
+   const details=[
+     c.house_role?'🪶 '+esc(c.house_role):'',
+     c.phone?'📱 '+esc(c.phone):'',
+     c.birth_date?'🎂 '+esc(new Date(c.birth_date+'T12:00:00').toLocaleDateString('pt-BR')):'',
+     c.joined_at?'📅 Entrada: '+esc(new Date(c.joined_at+'T12:00:00').toLocaleDateString('pt-BR')):''
+   ].filter(Boolean).join('<br>');
+   return '<article class="command-card" data-child-card="'+esc(c.id)+'"><div style="display:flex;gap:12px;align-items:flex-start">'+
+    (c.photo_url?'<img src="'+esc(c.photo_url)+'" alt="" style="width:58px;height:58px;border-radius:14px;object-fit:cover;border:1px solid #ddd">':'<div style="width:58px;height:58px;border-radius:14px;background:#f2ead7;display:grid;place-items:center;font-weight:900;color:#8b6415">'+initials+'</div>')+
+    '<div style="min-width:0;flex:1"><h3 style="margin-bottom:4px">'+esc(c.full_name)+'</h3><span class="pill '+(c.active?'success':'warn')+'">'+(c.active?'ATIVO':'INATIVO')+'</span> '+(u?'<span class="pill success">🔐 '+esc(u.username||'com acesso')+'</span>':'<span class="pill">Sem login</span>')+'</div></div>'+
+    '<p class="mini muted" style="margin-top:12px">'+(details||'Nenhum detalhe adicional cadastrado.')+'</p>'+
+    (c.notes?'<div class="notice-box mini">'+esc(c.notes)+'</div>':'')+
+    '<div class="row-actions" style="margin-top:10px"><button class="btn secondary" onclick="editarMembro(\''+c.id+'\')">✏️ Editar cadastro</button>'+
+    (u?'<button class="btn secondary" onclick="editarLogin(\''+u.id+'\')">🔐 Editar acesso</button>':'<button class="btn gold" onclick="criarAcessoMembro(\''+c.id+'\')">🔐 Criar acesso</button>')+
+    '<button class="btn '+(c.active?'secondary':'gold')+'" onclick="toggleMembro(\''+c.id+'\','+(c.active?'true':'false')+')">'+(c.active?'⏸️ Desativar':'▶️ Reativar')+'</button></div></article>';
+ }).join('')||'<div class="notice-box">Nenhum filho encontrado com esses filtros.</div>';
+}
+function novoMembro(){membroForm({})}
+async function editarMembro(id){const c=(window.__memberRows||[]).find(x=>x.id===id);if(c)membroForm(c)}
+function membroForm(c){
+ const profiles=users.filter(u=>u.role==='filho'||u.id===c.profile_id);
+ view.innerHTML='<div class="command-dashboard-head"><div><h2>👤 '+(c.id?'Editar filho':'Adicionar filho')+'</h2><p class="lead">Todos os campos abaixo podem ser alterados depois pelo Comandante. Nenhum dado histórico é apagado ao desativar.</p></div><button class="btn secondary" onclick="membros()">← Voltar</button></div>'+
+ '<form id="mf" class="command-form">'+
+ '<label>Nome completo<input name="full_name" value="'+esc(c.full_name||'')+'" required></label>'+
+ '<label>Função / cargo na casa<input name="house_role" value="'+esc(c.house_role||'')+'" placeholder="Ex.: Ogã, cambono, médium..."></label>'+
+ '<label>Telefone / WhatsApp<input name="phone" value="'+esc(c.phone||'')+'" placeholder="(67) 99999-9999"></label>'+
+ '<label>Data de nascimento<input name="birth_date" type="date" value="'+esc(c.birth_date||'')+'"></label>'+
+ '<label>Data de entrada na casa<input name="joined_at" type="date" value="'+esc(c.joined_at||'')+'"></label>'+
+ '<label>Ordem de exibição<input name="display_order" type="number" min="0" value="'+Number(c.display_order||0)+'"><small class="muted">Menor número aparece primeiro.</small></label>'+
+ '<label class="full">Foto do perfil (URL)<input name="photo_url" type="url" value="'+esc(c.photo_url||'')+'" placeholder="https://..."><small class="muted">A foto pode ser trocada depois sem alterar o cadastro.</small></label>'+
+ '<label class="full">Observações administrativas<textarea name="notes" rows="5" placeholder="Informações internas do cadastro...">'+esc(c.notes||'')+'</textarea></label>'+
+ '<label><input type="checkbox" name="active" '+(c.active!==false?'checked':'')+'> Filho ativo</label>'+
+ '<label>Login vinculado<select name="profile_id"><option value="">— Nenhum —</option>'+profiles.map(u=>'<option value="'+u.id+'" '+(u.id===c.profile_id?'selected':'')+'>'+esc(u.full_name||u.username)+' — '+esc(u.username||'sem usuário')+'</option>').join('')+'</select><small class="muted">O login/senha é gerenciado separadamente em “Acessos e senhas”.</small></label>'+
+ '<div class="full"><button class="btn gold">💾 Salvar cadastro</button><button type="button" class="btn secondary" onclick="membros()">Cancelar</button></div></form>';
+ document.getElementById('mf').onsubmit=async e=>{
+   e.preventDefault();
+   const d=Object.fromEntries(new FormData(e.target));
+   const row={full_name:d.full_name,house_role:d.house_role||null,phone:d.phone||null,birth_date:d.birth_date||null,joined_at:d.joined_at||null,display_order:Number(d.display_order||0),photo_url:d.photo_url||null,notes:d.notes||null,active:d.active==='on',profile_id:d.profile_id||null,updated_at:new Date().toISOString()};
+   const q=c.id?await sb.from('children').update(row).eq('id',c.id).select().single():await sb.from('children').insert({...row,created_at:new Date().toISOString()}).select().single();
+   if(q.error){msg(q.error);return}
+   await audit(c.id?'update_child_profile':'create_child_profile','children',c.id||q.data.id,{name:d.full_name,active:row.active,profile_id:row.profile_id});
+   await loadBase();membros();
+ };
+}
+async function criarAcessoMembro(childId){
+ const c=(window.__memberRows||[]).find(x=>x.id===childId);if(!c)return;
+ const u=users.find(x=>x.id===c.profile_id);
+ if(u){editarLogin(u.id);return}
+ loginForm({full_name:c.full_name,role:'filho'});
 }
 async function toggleMembro(id,active){
- const {error}=await sb.from('children').update({active:!active}).eq('id',id);if(error){msg(error);return}
- await audit(active?'deactivate_child':'reactivate_child','children',id,{}); await loadBase();membros()
+ const nome=(window.__memberRows||[]).find(x=>x.id===id)?.full_name||'este filho';
+ const acao=active?'desativar':'reativar';
+ if(!confirm('Deseja '+acao+' '+nome+'?\n\nO histórico será preservado. '+(active?'Ele deixará de participar das próximas escalas e rateios.':'Ele voltará a participar das próximas regras automáticas.') ))return;
+ const {error}=await sb.from('children').update({active:!active,updated_at:new Date().toISOString()}).eq('id',id);if(error){msg(error);return}
+ await audit(active?'deactivate_child':'reactivate_child','children',id,{name:nome});await loadBase();membros()
 }
 async function logins(){
  const {data}=await sb.from('profiles').select('id,full_name,username,role,active,created_at').order('full_name');users=data||[];
