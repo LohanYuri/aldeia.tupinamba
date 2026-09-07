@@ -373,6 +373,20 @@
     Object.entries(labels).forEach(([id,key])=>{const a=document.querySelector('#nav a[href="#'+id+'"]');if(a&&settings[key])a.textContent=settings[key]});
   }
 
+  async function syncPublicScales(){
+    try{
+      const client=window.ALDEIA_SUPABASE;if(!client)return;
+      const {data,error}=await client.from('scales').select('id,scale_date,weekday,start_time,end_time,notes,scale_type,teams(name)').not('published_at','is',null).order('scale_date',{ascending:true}).limit(100);
+      const box=document.getElementById('publicScales');if(!box)return;
+      if(error||!data?.length){box.innerHTML='<div class="notice"><b>Escala</b><span>A escala publicada será disponibilizada aqui pelo Comando Geral.</span></div>';return}
+      const groups={};data.forEach(s=>{const key=s.scale_date||'sem-data';(groups[key]??=[]).push(s)});
+      box.innerHTML=Object.entries(groups).map(([date,list])=>{
+        const s=list[0];const when=(s.start_time?String(s.start_time).slice(0,5):'')+(s.end_time?'–'+String(s.end_time).slice(0,5):'');
+        return '<article class="public-scale-card"><div class="public-scale-date"><b>'+escapeHtml(new Date(date+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'}))+'</b><span>'+escapeHtml(s.weekday||'')+'</span></div><div><strong>'+escapeHtml(s.scale_type||s.teams?.name||'Escala da Casa')+'</strong><p>'+escapeHtml(when||'Sem horário definido')+'</p><p class="mini">'+escapeHtml(s.notes||'')+'</p></div></article>';
+      }).join('');
+    }catch(e){console.warn('Escala pública indisponível',e)}
+  }
+
   async function syncPortalContent(){
     try{
       const client=window.ALDEIA_SUPABASE;
@@ -464,6 +478,7 @@
     await syncPublicSettings();
     await syncPortalContent();
     await syncEvents();
+    await syncPublicScales();
     await syncPortalMedia();
     await trackPortalVisit();
     await loadDonationCampaigns();
