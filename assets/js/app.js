@@ -369,6 +369,10 @@
         window.ALDEIA_DATA.donation=window.ALDEIA_DATA.donation||{};
         window.ALDEIA_DATA.donation.pixKey=settings.pix_key;
       }
+      if(settings.donation_note){
+        window.ALDEIA_DATA.donation=window.ALDEIA_DATA.donation||{};
+        window.ALDEIA_DATA.donation.note=settings.donation_note;
+      }
       if(settings.private_hours) window.ALDEIA_DATA.schedule[0].text=settings.private_hours;
       if(settings.friday_hours) window.ALDEIA_DATA.schedule[1].text=settings.friday_hours;
       document.querySelectorAll('[data-site-name]').forEach(el=>el.textContent=settings.site_name||window.ALDEIA_DATA.site.name);
