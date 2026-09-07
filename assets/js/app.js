@@ -204,6 +204,38 @@
     a.addEventListener("click", () => nav.classList.remove("open"));
   });
 
+  async function trackPortalVisit(){
+    try{
+      const client=window.ALDEIA_SUPABASE;
+      if(!client) return;
+      const key='aldeia_visit_session';
+      let session=sessionStorage.getItem(key);
+      if(!session){session=crypto?.randomUUID?.()||String(Date.now())+Math.random();sessionStorage.setItem(key,session)}
+      const last=sessionStorage.getItem('aldeia_visit_sent');
+      if(last) return;
+      sessionStorage.setItem('aldeia_visit_sent','1');
+      const ua=navigator.userAgent||'';
+      const device=/Mobi|Android|iPhone|iPad/i.test(ua)?'mobile':'desktop';
+      await client.from('portal_visits').insert({session_id:session,page:location.pathname||'/',referrer:document.referrer||null,device_type:device});
+    }catch(e){console.warn('Analytics do portal indisponível',e)}
+  }
+
+  async function loadDonationCampaigns(){
+    try{
+      const client=window.ALDEIA_SUPABASE;
+      const box=document.querySelector('#donationCampaigns');
+      if(!client||!box) return;
+      const {data,error}=await client.from('donation_campaigns').select('id,name,description,goal_amount').eq('active',true).eq('public_visible',true).order('created_at',{ascending:false});
+      if(error) throw error;
+      if(!data?.length){box.innerHTML='<div class="notice"><b>🤲 Doações</b><span>Em breve a casa disponibilizará novas caixinhas de apoio.</span></div>';return}
+      const ids=data.map(x=>x.id);
+      const {data:donations}=await client.from('donations').select('campaign_id,amount,status').in('campaign_id',ids).eq('status','recebida');
+      const totals={};(donations||[]).forEach(x=>totals[x.campaign_id]=(totals[x.campaign_id]||0)+Number(x.amount||0));
+      box.innerHTML=data.map(x=>{const goal=Number(x.goal_amount||0),got=totals[x.id]||0,pct=goal?Math.min(100,(got/goal)*100):0;return '<article class="card donation-campaign-card"><div class="campaign-icon">🤲</div><h3>'+escapeHtml(x.name)+'</h3><p>'+escapeHtml(x.description||'Ajude a Aldeia nesta finalidade.')+'</p><div class="campaign-values"><b>R$ '+got.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b><span>de R$ '+goal.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span></div><div class="campaign-progress" aria-label="'+pct.toFixed(0)+'% arrecadado"><span style="width:'+pct.toFixed(1)+'%"></span></div><strong>'+pct.toFixed(0)+'% da meta</strong><button class="btn gold small" type="button" data-campaign-id="'+x.id+'">🤲 Quero ajudar</button></article>'}).join('');
+      box.querySelectorAll('[data-campaign-id]').forEach(btn=>btn.addEventListener('click',()=>{const sel=document.querySelector('[name="donationPurpose"]');const campaign=data.find(x=>x.id===btn.dataset.campaignId);if(sel&&campaign){const opt=[...sel.options].find(o=>o.textContent.includes(campaign.name));if(opt)sel.value=opt.value;else{const o=document.createElement('option');o.textContent=campaign.name;o.value=campaign.name;sel.appendChild(o);sel.value=campaign.name}}document.querySelector('#donationForm')?.scrollIntoView({behavior:'smooth',block:'center'})}));
+    }catch(e){console.warn('Campanhas de doação indisponíveis',e)}
+  }
+
   async function syncPortalContent(){
     try{
       const client=window.ALDEIA_SUPABASE;
@@ -253,6 +285,8 @@
   document.addEventListener("DOMContentLoaded", async () => {
     await syncPublicSettings();
     await syncPortalContent();
+    await trackPortalVisit();
+    await loadDonationCampaigns();
     const year = new Date().getFullYear();
     document.querySelectorAll("[data-year]").forEach((el) => {
       el.textContent = year;
