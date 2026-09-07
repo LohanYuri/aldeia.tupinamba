@@ -301,21 +301,76 @@
 
   function applyCmsContent(rows){
     const map={};
-    (rows||[]).forEach(r=>map[r.section+':'+r.content_key]=r);
-    const set=(sel,value)=>{const el=document.querySelector(sel);if(el&&value!==undefined)el.textContent=value};
-    set('#inicio .eyebrow',map['inicio:eyebrow']?.body||map['inicio:eyebrow']?.title);
-    set('#inicio h1',map['inicio:title']?.body||map['inicio:title']?.title);
-    set('#inicio .hero-copy>p',map['inicio:lead']?.body||map['inicio:lead']?.title);
-    set('#aldeia h2',map['aldeia:title']?.body||map['aldeia:title']?.title);
-    set('#aldeia>div>p',map['aldeia:body']?.body);
-    set('#consultas h2',map['consultas:title']?.body||map['consultas:title']?.title);
-    set('#consultas .lead',map['consultas:body']?.body);
-    set('#doutrina h2',map['doutrina:title']?.body||map['doutrina:title']?.title);
-    set('#doutrina .cms-body',map['doutrina:body']?.body);
-    set('#avisos h2',map['avisos:title']?.body||map['avisos:title']?.title);
-    set('#contato h2',map['contato:title']?.body||map['contato:title']?.title);
-    set('#contato .lead',map['contato:body']?.body);
-    set('#regras h2',map['regras:title']?.body||map['regras:title']?.title);
+    (rows||[]).forEach(r=>{map[r.section+':'+r.content_key]=r});
+    const val=(section,key,fallback='')=>map[section+':'+key]?.body??map[section+':'+key]?.title??fallback;
+    const text=(sel,value)=>{const el=document.querySelector(sel);if(el&&value!==undefined&&value!=='')el.textContent=value};
+    const html=(sel,value)=>{const el=document.querySelector(sel);if(el&&value!==undefined&&value!=='')el.innerHTML=escapeHtml(value).replace(/\\n/g,'<br>')};
+    const sectionData=[
+      ['#aldeia','aldeia'],['#atendimentos','atendimentos'],['#consultas','consultas'],
+      ['#doutrina','doutrina'],['#galeria','galeria'],['#regras','regras'],['#contato','contato'],
+      ['.access','access']
+    ];
+    sectionData.forEach(([sel,s])=>{
+      text(sel+' .eyebrow',val(s,'eyebrow'));
+      text(sel+' h2',val(s,'title'));
+      text(sel+' .lead',val(s,'lead'));
+    });
+    text('#inicio .eyebrow',val('inicio','eyebrow'));
+    text('#inicio h1',val('inicio','title'));
+    text('#inicio .hero-copy>p',val('inicio','lead'));
+    const q=val('inicio','quote'),cite=val('inicio','cite');
+    if(q||cite){const b=document.querySelector('#inicio blockquote');if(b)b.innerHTML=(q?escapeHtml(q).replace(/\\n/g,'<br>'):'')+(cite?'<br><cite>— '+escapeHtml(cite)+'</cite>':'');}
+    const pills=(window.__ALDEIA_SETTINGS?.aldeia_pills||'').split(/\\n|,/).map(x=>x.trim()).filter(Boolean);
+    if(pills.length){document.querySelectorAll('#inicio .pills,#aldeia .pills').forEach(box=>{box.innerHTML=pills.map(x=>'<span>'+escapeHtml(x)+'</span>').join('')})}
+    const highlights=[
+      ['.home-highlights article:nth-child(1)','destaque1'],
+      ['.home-highlights article:nth-child(2)','destaque2'],
+      ['.home-highlights article:nth-child(3)','destaque3']
+    ];
+    highlights.forEach(([sel,s])=>{
+      text(sel+' h3',val(s,'title'));
+      html(sel+' b',val(s,'highlight'));
+      html(sel+' p',val(s,'body'));
+    });
+    const cards=[
+      ['#atendimentos .hours-card','atendimento1'],
+      ['#atendimentos .friday-card','atendimento2'],
+      ['#atendimentos .grid3 .card:nth-child(3)','atendimento3']
+    ];
+    cards.forEach(([sel,s])=>{text(sel+' h3',val(s,'title'));html(sel+' p',val(s,'body'))});
+    const doctrine=[
+      ['#doutrina .grid3 .card:nth-child(1)','doutrina_fe'],
+      ['#doutrina .grid3 .card:nth-child(2)','doutrina_caridade'],
+      ['#doutrina .grid3 .card:nth-child(3)','doutrina_respeito']
+    ];
+    doctrine.forEach(([sel,s])=>{text(sel+' h3',val(s,'title'));html(sel+' p',val(s,'body'))});
+    text('#consultas .notice b',val('consultas_notice','title'));
+    html('#consultas .notice span',val('consultas_notice','body'));
+    text('#access .btn',window.__ALDEIA_SETTINGS?.access_adm_label||'Entrar como ADM');
+    const accessButtons=document.querySelectorAll('.access .hero-actions .btn');
+    if(accessButtons[1])accessButtons[1].textContent=window.__ALDEIA_SETTINGS?.access_filhos_label||'Área dos Filhos';
+    const buttons=document.querySelectorAll('#inicio .hero-actions .btn');
+    if(buttons[0]&&window.__ALDEIA_SETTINGS?.hero_button1)buttons[0].textContent=window.__ALDEIA_SETTINGS.hero_button1;
+    if(buttons[1]&&window.__ALDEIA_SETTINGS?.hero_button2)buttons[1].textContent=window.__ALDEIA_SETTINGS.hero_button2;
+    const motto=document.querySelector('.hero-motto');
+    if(motto&&window.__ALDEIA_SETTINGS?.hero_motto)motto.innerHTML=escapeHtml(window.__ALDEIA_SETTINGS.hero_motto).replace(/\\n/g,'<br>');
+    const rulesLead=val('regras','lead');
+    if(rulesLead)text('#regras .lead',rulesLead);
+    const donationSection=document.querySelector('#doacoes');
+    if(donationSection){text('#doacoes h2',val('doacoes','title'));text('#doacoes .eyebrow',val('doacoes','eyebrow'));text('#doacoes>.lead',val('doacoes','lead'));}
+  }
+
+  function applyPortalOrganization(settings){
+    const sectionMap={aldeia:'#aldeia',atendimentos:'#atendimentos',consultas:'#consultas',doutrina:'#doutrina',galeria:'#galeria',regras:'#regras',convites:'#convites',doacoes:'#doacoes',avisos:'#avisos',contato:'#contato',access:'.access'};
+    Object.entries(sectionMap).forEach(([key,selector])=>{
+      const visible=settings['section_'+key+'_visible']!=='false';
+      const el=document.querySelector(selector);
+      if(el)el.style.display=visible?'':'none';
+      const navLink=document.querySelector('#nav a[href="#'+key+'"]');
+      if(navLink)navLink.style.display=visible?'':'none';
+    });
+    const labels={inicio:'nav_inicio',aldeia:'nav_aldeia',doutrina:'nav_doutrina',regras:'nav_regras',atendimentos:'nav_atendimentos',convites:'nav_eventos',doacoes:'nav_doacoes',filhos:'nav_filhos',adm:'nav_adm',contato:'nav_contato'};
+    Object.entries(labels).forEach(([id,key])=>{const a=document.querySelector('#nav a[href="#'+id+'"]');if(a&&settings[key])a.textContent=settings[key]});
   }
 
   async function syncPortalContent(){
@@ -344,51 +399,59 @@
   async function syncPublicSettings(){
     try{
       const client=window.ALDEIA_SUPABASE;
-      if(!client) return;
+      if(!client)return;
       const {data,error}=await client.from("public_settings").select("key,value");
-      if(error||!data) return;
+      if(error||!data)return;
       const settings=Object.fromEntries(data.map(x=>[x.key,x.value]));
+      window.__ALDEIA_SETTINGS=settings;
       window.ALDEIA_DATA.site=window.ALDEIA_DATA.site||{};
       if(settings.site_name)window.ALDEIA_DATA.site.name=settings.site_name;
       if(settings.site_subtitle)window.ALDEIA_DATA.site.subtitle=settings.site_subtitle;
       if(settings.site_city)window.ALDEIA_DATA.site.city=settings.site_city;
       if(settings.site_address)window.ALDEIA_DATA.site.address=settings.site_address;
-      if(settings.whatsapp){
-        window.ALDEIA_DATA.contact=window.ALDEIA_DATA.contact||{};
-        window.ALDEIA_DATA.contact.whatsapp=settings.whatsapp;
-        window.ALDEIA_DATA.contact.whatsappDisplay=settings.whatsapp_display||settings.whatsapp;
-      }
-      document.title=(settings.site_name||window.ALDEIA_DATA.site.name||'Aldeia Tupinambá')+' | Portal Oficial';
+      window.ALDEIA_DATA.contact=window.ALDEIA_DATA.contact||{};
+      if(settings.whatsapp)window.ALDEIA_DATA.contact.whatsapp=settings.whatsapp;
+      if(settings.whatsapp_display)window.ALDEIA_DATA.contact.whatsappDisplay=settings.whatsapp_display;
+      if(settings.contact_message)window.ALDEIA_DATA.contact.message=settings.contact_message;
+      window.ALDEIA_DATA.donation=window.ALDEIA_DATA.donation||{};
+      if(settings.pix_key)window.ALDEIA_DATA.donation.pixKey=settings.pix_key;
+      if(settings.donation_note)window.ALDEIA_DATA.donation.note=settings.donation_note;
+      document.title=(settings.seo_title||settings.site_name||window.ALDEIA_DATA.site.name||'Aldeia Tupinambá')+(settings.seo_title?'':' | Portal Oficial');
+      const meta=document.querySelector('meta[name="description"]');if(meta&&settings.seo_description)meta.setAttribute('content',settings.seo_description);
       const root=document.documentElement;
+      if(settings.accent_color){root.style.setProperty('--gold',settings.accent_color);root.style.setProperty('--gold2',settings.accent_color);}
       if(settings.background_color)document.body.style.backgroundColor=settings.background_color;
-      if(settings.background_image)document.body.style.backgroundImage='linear-gradient(rgba(0,0,0,.16),rgba(0,0,0,.16)),url("'+String(settings.background_image).replace(/"/g,'')+'")';
-      if(settings.hero_image){const hero=document.querySelector('#inicio');if(hero)hero.style.backgroundImage='linear-gradient(rgba(0,0,0,.22),rgba(0,0,0,.22)),url("'+String(settings.hero_image).replace(/"/g,'')+'")'}
+      const overlay=Math.max(0,Math.min(.9,Number(settings.background_overlay??.74)));
+      if(settings.background_image){
+        document.body.style.backgroundImage='linear-gradient(rgba(5,3,1,'+overlay+'),rgba(5,3,1,'+Math.min(.95,overlay+.08)+')),url("'+String(settings.background_image).replace(/"/g,'')+'")';
+      }
+      if(settings.hero_image){
+        const hero=document.querySelector('#inicio');
+        if(hero)hero.style.backgroundImage='linear-gradient(90deg,rgba(5,3,1,'+Math.min(.9,overlay)+'),rgba(5,3,1,'+Math.max(.08,overlay-.38)+')),url("'+String(settings.hero_image).replace(/"/g,'')+'")';
+      }
       const logo=document.querySelector('.brand-mark');
-      if(settings.logo_image&&logo){logo.textContent='';logo.style.backgroundImage='url("'+String(settings.logo_image).replace(/"/g,'')+'")';logo.style.backgroundSize='cover';logo.style.backgroundPosition='center';logo.style.width='42px';logo.style.height='42px';logo.style.borderRadius='50%';}
-      if(settings.pix_key){
-        window.ALDEIA_DATA.donation=window.ALDEIA_DATA.donation||{};
-        window.ALDEIA_DATA.donation.pixKey=settings.pix_key;
+      if(settings.logo_image&&logo){
+        logo.textContent='';logo.style.backgroundImage='url("'+String(settings.logo_image).replace(/"/g,'')+'")';logo.style.backgroundSize='cover';logo.style.backgroundPosition='center';logo.style.width='42px';logo.style.height='42px';logo.style.borderRadius='50%';
       }
-      if(settings.donation_note){
-        window.ALDEIA_DATA.donation=window.ALDEIA_DATA.donation||{};
-        window.ALDEIA_DATA.donation.note=settings.donation_note;
-      }
-      if(settings.private_hours) window.ALDEIA_DATA.schedule[0].text=settings.private_hours;
-      if(settings.friday_hours) window.ALDEIA_DATA.schedule[1].text=settings.friday_hours;
       document.querySelectorAll('[data-site-name]').forEach(el=>el.textContent=settings.site_name||window.ALDEIA_DATA.site.name);
       document.querySelectorAll('[data-site-subtitle]').forEach(el=>el.textContent=settings.site_subtitle||window.ALDEIA_DATA.site.subtitle);
       document.querySelectorAll('[data-footer-name]').forEach(el=>el.textContent=settings.site_name||window.ALDEIA_DATA.site.name);
       document.querySelectorAll('[data-site-footer]').forEach(el=>el.textContent=settings.site_footer||'Terreiro de Umbanda • Axé, paz e luz');
-      document.querySelectorAll('[data-private-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.private_hours||'') .replace(/\\n/g,'<br>'));
-      document.querySelectorAll('[data-friday-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.friday_hours||'') .replace(/\\n/g,'<br>'));
+      document.querySelectorAll('[data-private-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.private_hours||window.ALDEIA_DATA.schedule?.[0]?.text||'').replace(/\\n/g,'<br>'));
+      document.querySelectorAll('[data-friday-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.friday_hours||window.ALDEIA_DATA.schedule?.[1]?.text||'').replace(/\\n/g,'<br>'));
       document.querySelectorAll('[data-instagram]').forEach(el=>{if(settings.instagram){el.href=settings.instagram;el.style.display='inline-flex'}else el.style.display='none'});
       document.querySelectorAll('[data-facebook]').forEach(el=>{if(settings.facebook){el.href=settings.facebook;el.style.display='inline-flex'}else el.style.display='none'});
-      document.querySelectorAll("[data-whatsapp]").forEach(el=>{
-        const digits=normalizeWhatsApp(settings.whatsapp||window.ALDEIA_DATA.contact.whatsapp);
-        if(digits) el.href="https://wa.me/"+digits;
-      });
-      document.querySelectorAll("[data-pix-key]").forEach(el=>el.textContent=settings.pix_key||window.ALDEIA_DATA.donation.pixKey);
-    }catch(e){ console.warn("Supabase público indisponível",e); }
+      document.querySelectorAll('[data-whatsapp]').forEach(el=>{const digits=normalizeWhatsApp(settings.whatsapp||window.ALDEIA_DATA.contact.whatsapp);if(digits)el.href='https://wa.me/'+digits});
+      document.querySelectorAll('[data-pix-key]').forEach(el=>el.textContent=settings.pix_key||window.ALDEIA_DATA.donation.pixKey||'PIX não cadastrado');
+      const purposeSelect=document.querySelector('[name="donationPurpose"]');
+      if(purposeSelect&&settings.donation_purposes){
+        const old=purposeSelect.value;
+        const lines=String(settings.donation_purposes).split(/\\n/).map(x=>x.trim()).filter(Boolean);
+        purposeSelect.innerHTML='<option value="">Selecione uma finalidade</option>'+lines.map(x=>'<option>'+escapeHtml(x)+'</option>').join('')+'<option>✍️ Outra finalidade</option>';
+        if(old&&[...purposeSelect.options].some(o=>o.value===old))purposeSelect.value=old;
+      }
+      applyPortalOrganization(settings);
+    }catch(e){console.warn("Supabase público indisponível",e);}
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
