@@ -55,6 +55,8 @@
 @media(min-width:761px){.command-nav .nav-group>.nav-group-title{cursor:default}.command-nav .nav-group>.nav-group-title::after{display:none}.command-nav .nav-group:not([open])>*:not(.nav-group-title){display:block}}
 @media(max-width:760px){.command-workspace{display:block}.command-nav{position:relative;top:auto;max-height:none;margin:0 0 14px;padding:8px;gap:7px}.nav-group{width:100%}.command-nav button{padding:10px 9px}.command-hero{margin-bottom:12px}.command-hero p{line-height:1.45}#view{scroll-margin-top:18px}}
 @media(max-width:520px){.command-workspace{width:100%}.command-nav{border-radius:13px}.command-nav .nav-group-title{padding:11px 9px}.command-nav button{font-size:13px;padding:10px 9px}}
+
+.access-security-note{border-left:4px solid #8b6415}.command-table td .btn.small{padding:7px 9px;font-size:12px}.command-table td{min-width:110px}
 </style>
 </head>
 <body class="internal">
@@ -306,7 +308,7 @@ async function criarAcessoMembro(childId){
  const c=(window.__memberRows||[]).find(x=>x.id===childId);if(!c)return;
  const u=users.find(x=>x.id===c.profile_id);
  if(u){editarLogin(u.id);return}
- loginForm({full_name:c.full_name,role:'filho'});
+ loginForm({full_name:c.full_name,role:'filho',child_id:c.id});
 }
 async function toggleMembro(id,active){
  const nome=(window.__memberRows||[]).find(x=>x.id===id)?.full_name||'este filho';
@@ -316,17 +318,88 @@ async function toggleMembro(id,active){
  await audit(active?'deactivate_child':'reactivate_child','children',id,{name:nome});await loadBase();membros()
 }
 async function logins(){
- const {data}=await sb.from('profiles').select('id,full_name,username,role,active,created_at').order('full_name');users=data||[];
- view.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><h2>🔐 Logins ADM</h2><p class="lead">Somente o Comandante Geral cria, edita, bloqueia ou exclui acessos e define as senhas.</p></div><button class="btn gold" onclick="novoLogin()">+ Criar login</button></div>'+
- '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+
- users.map(u=>'<tr><td><b>'+esc(u.username||'—')+'</b></td><td>'+esc(u.full_name)+'</td><td><span class="pill">'+esc(u.role)+'</span></td><td><span class="pill '+(u.active?'success':'warn')+'">'+(u.active?'ATIVO':'BLOQUEADO')+'</span></td><td><div class="row-actions"><button class="btn secondary" onclick="editarLogin(\''+u.id+'\')">Editar</button>'+(u.id!==me.id?'<button class="btn secondary" onclick="excluirLogin(\''+u.id+'\')">Excluir</button>':'')+'</div></td></tr>').join('')+'</tbody></table></div>';
+ const {data,error}=await sb.from('profiles').select('id,full_name,username,role,active,created_at').order('full_name');
+ if(error){msg(error);return}
+ users=data||[];
+ const linked=children.filter(c=>c.profile_id);
+ const roleLabel=r=>({adm:'ADM operacional',dirigente:'Mãe / Dirigente',filho:'Filho',financeiro:'👑 Comandante Geral'}[r]||r||'—');
+ const roleClass=r=>r==='financeiro'?'success':r==='adm'?'warn':'';
+ const rows=users.map(u=>{
+   const child=children.find(c=>c.profile_id===u.id);
+   return '<tr>'+
+    '<td><b>'+esc(u.username||'—')+'</b><br><span class="mini muted">'+esc(u.email||'')+'</span></td>'+
+    '<td><b>'+esc(u.full_name||'—')+'</b>'+(child?'<br><span class="mini muted">👤 '+esc(child.house_role||'Filho da casa')+'</span>':'')+'</td>'+
+    '<td><span class="pill '+roleClass(u.role)+'">'+esc(roleLabel(u.role))+'</span></td>'+
+    '<td><span class="pill '+(u.active?'success':'warn')+'">'+(u.active?'🟢 ATIVO':'⏸️ BLOQUEADO')+'</span></td>'+
+    '<td><div class="row-actions">'+
+      '<button class="btn secondary small" onclick="editarLogin(\\''+u.id+'\\')">✏️ Editar</button>'+
+      (child?'<button class="btn outline small" onclick="membros();setTimeout(()=>editarMembro(\\''+child.id+'\\'),50)">👤 Cadastro</button>':'')+
+      (u.id!==me.id?'<button class="btn secondary small" onclick="excluirLogin(\\''+u.id+'\\')">🗑️ Excluir</button>':'<span class="pill success">SEU ACESSO</span>')+
+    '</div></td>'+
+   '</tr>';
+ }).join('');
+ view.innerHTML=
+ '<div class="command-dashboard-head"><div><span class="eyebrow">SEGURANÇA</span><h2>🔐 Acessos e senhas</h2><p class="lead">Área exclusiva do Comandante Geral para criar, editar, bloquear, redefinir e remover acessos.</p></div><button class="btn gold" onclick="novoLogin()">➕ Novo acesso</button></div>'+
+ '<div class="notice-box accountability-critical"><b>👑 Regra de segurança:</b> somente o Comandante Geral pode administrar usuários e senhas. A senha nunca é exibida nem armazenada no portal. Cada alteração é registrada na auditoria.</div>'+
+ '<div class="command-grid">'+
+   card('👥 Usuários','<div class="command-stat">'+users.length+'</div><p>Acessos cadastrados no sistema.</p>')+
+   card('🟢 Ativos','<div class="command-stat">'+users.filter(x=>x.active).length+'</div><p>Podem entrar no portal.</p>')+
+   card('⏸️ Bloqueados','<div class="command-stat">'+users.filter(x=>!x.active).length+'</div><p>Sem acesso enquanto bloqueados.</p>')+
+   card('👤 Filhos com login','<div class="command-stat">'+linked.length+'</div><p>Cadastros vinculados a um acesso.</p>')+
+ '</div>'+
+ '<div class="notice-box"><b>Como funciona:</b> o Comandante cria o acesso aqui. Para um filho da casa, o login pode ser vinculado ao cadastro dele. Bloquear o login impede a entrada sem apagar o cadastro ou o histórico.</div>'+
+ '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Usuário / e-mail</th><th>Nome / vínculo</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+
+ (rows||'<tr><td colspan="5">Nenhum acesso cadastrado.</td></tr>')+
+ '</tbody></table></div>';
 }
-function novoLogin(){loginForm({})}function editarLogin(id){loginForm(users.find(x=>x.id===id)||{})}
+function novoLogin(){loginForm({})}
+function editarLogin(id){loginForm(users.find(x=>x.id===id)||{})}
+function gerarSenhaSegura(){
+ const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+ let out='';for(let i=0;i<12;i++)out+=chars[Math.floor(Math.random()*chars.length)];
+ const input=document.querySelector('#lf input[name="password"]');if(input){input.value=out;input.type='text';input.focus();input.select()}
+}
 function loginForm(u){
- view.innerHTML='<h2>🔐 '+(u.id?'Editar acesso':'Criar acesso')+'</h2><form id="lf" class="command-form"><label>Nome completo<input name="full_name" value="'+esc(u.full_name||'')+'" required></label><label>Usuário<input name="username" value="'+esc(u.username||'')+'" required></label><label>E-mail<input name="email" type="email" value="'+esc(u.email||'')+'" '+(u.id?'':'required')+'></label><label>Perfil<select name="role"><option value="adm" '+(u.role==='adm'?'selected':'')+'>ADM operacional</option><option value="dirigente" '+(u.role==='dirigente'?'selected':'')+'>Mãe/Dirigente</option><option value="filho" '+(u.role==='filho'?'selected':'')+'>Filho</option><option value="financeiro" '+(u.role==='financeiro'?'selected':'')+'>👑 Comandante Geral</option></select></label><label>Nova senha<input name="password" type="password" placeholder="'+(u.id?'Deixe vazio para manter':'Senha temporária')+'"></label><label><input type="checkbox" name="active" '+(u.active!==false?'checked':'')+'> Acesso ativo</label><div class="full"><button class="btn gold">Salvar</button> <button type="button" class="btn secondary" onclick="logins()">Cancelar</button></div></form>';
- document.getElementById('lf').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username,email:d.email,password:d.password,role:d.role,active:d.active==='on'};const {data,error}=await sb.functions.invoke('admin-users',{body:payload});if(error||data?.error){msg(data?.error||error);return}await audit(u.id?'update_login':'create_login','profiles',u.id,{username:d.username,role:d.role});await loadBase();logins()}
+ const child=children.find(c=>c.profile_id===u.id);
+ const roleOptions=[
+  ['adm','ADM operacional'],['dirigente','Mãe / Dirigente'],['filho','Filho']
+ ].map(([v,l])=>'<option value="'+v+'" '+(u.role===v?'selected':'')+'>'+l+'</option>').join('');
+ view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">CONTROLE DE ACESSO</span><h2>🔐 '+(u.id?'Editar acesso':'Criar acesso')+'</h2><p class="lead">'+(u.id?'Altere somente o que for necessário. Deixe a senha vazia para mantê-la.':'Crie o usuário e, se for um filho, vincule ao cadastro existente.')+'</p></div><button class="btn secondary" onclick="logins()">← Voltar</button></div>'+
+ '<div class="notice-box accountability-critical">🔒 <b>Senha segura:</b> nunca mostramos a senha atual. Ao redefinir, informe uma nova senha e entregue-a ao usuário por um canal seguro.</div>'+
+ '<form id="lf" class="command-form">'+
+ '<label>Nome completo<input name="full_name" value="'+esc(u.full_name||'')+'" required></label>'+
+ '<label>Usuário<input name="username" value="'+esc(u.username||'')+'" required></label>'+
+ '<label>E-mail<input name="email" type="email" value="'+esc(u.email||'')+'" '+(u.id?'':'required')+'></label>'+
+ '<label>Perfil<select name="role" '+(u.id===me.id?'disabled':'')+'>'+roleOptions+'</select>'+(u.id===me.id?'<small class="muted">O Comandante atual não pode perder o próprio nível de acesso.</small>':'')+'</label>'+
+ '<label class="full">Vincular ao filho da casa<select name="child_id"><option value="">— Nenhum —</option>'+children.filter(c=>c.active||c.profile_id===u.id).map(c=>'<option value="'+c.id+'" '+(c.profile_id===u.id?'selected':'')+'>'+esc(c.full_name)+' — '+esc(c.house_role||'Filho da casa')+'</option>').join('')+'</select><small class="muted">O vínculo conecta este login ao cadastro do filho sem misturar senha com dados pessoais.</small></label>'+
+ '<label>Nova senha<input name="password" type="password" minlength="8" placeholder="'+(u.id?'Deixe vazio para manter a senha':'Mínimo de 8 caracteres')+'"></label>'+
+ '<div style="display:flex;align-items:end;gap:8px"><button type="button" class="btn outline" onclick="gerarSenhaSegura()">🎲 Gerar senha</button></div>'+
+ '<label><input type="checkbox" name="active" '+(u.active!==false?'checked':'')+'> Acesso ativo</label>'+
+ '<div class="full"><button class="btn gold">💾 Salvar acesso</button> <button type="button" class="btn secondary" onclick="logins()">Cancelar</button></div>'+
+ '</form>';
+ const lf=document.getElementById('lf');
+ lf.onsubmit=async e=>{
+   e.preventDefault();
+   const d=Object.fromEntries(new FormData(e.target));
+   const role=u.id===me.id?'financeiro':d.role;
+   const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username,email:d.email,password:d.password,role,active:d.active==='on',child_id:d.child_id||null};
+   const {data,error}=await sb.functions.invoke('admin-users',{body:payload});
+   if(error||data?.error){msg(data?.error||error);return}
+   await audit(u.id?'update_login':'create_login','profiles',u.id||data?.id,{username:d.username,role,active:d.active==='on',child_id:d.child_id||null,password_changed:Boolean(d.password)});
+   await loadBase();
+   alert(u.id?'Acesso atualizado com sucesso.':'Acesso criado com sucesso. Entregue a senha ao usuário por um canal seguro.');
+   logins();
+ };
 }
-async function excluirLogin(id){if(!confirm('Excluir este acesso definitivamente?'))return;const {data,error}=await sb.functions.invoke('admin-users',{body:{action:'delete',id}});if(error||data?.error){msg(data?.error||error);return}await audit('delete_login','profiles',id,{});await loadBase();logins()}
+async function excluirLogin(id){
+ const u=users.find(x=>x.id===id);if(!u)return;
+ if(u.role==='financeiro'){alert('O acesso do Comandante Geral não pode ser excluído por esta área.');return}
+ if(!confirm('Excluir definitivamente o acesso de '+(u.full_name||u.username)+'?\\n\\nO cadastro do filho e o histórico serão preservados.'))return;
+ const {data,error}=await sb.functions.invoke('admin-users',{body:{action:'delete',id}});
+ if(error||data?.error){msg(data?.error||error);return}
+ await audit('delete_login','profiles',id,{username:u.username,role:u.role});
+ await loadBase();logins();
+}
 async function avisos(){
  const {data}=await sb.from('admin_notices').select('id,title,body,event_date,event_time,mandatory,published,created_at').order('created_at',{ascending:false});
  window.__adminNotices=data||[];
