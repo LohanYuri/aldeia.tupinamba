@@ -57,6 +57,8 @@ textarea{min-height:90px;resize:vertical}.full{grid-column:1/-1}
 <button class="btn tab" data-tab="avisos">📢 Avisos</button>
 <button class="btn tab" data-tab="doacoes">🤲 Doações</button>
 <button class="btn tab" data-tab="midias">🖼️ Mídias</button>
+<button class="btn tab" data-tab="rodape">🧱 Rodapé</button>
+<button class="btn tab" data-tab="avancado">⚙️ Avançado</button>
 </nav>
 
 <section id="identidade" class="panel-section active">
@@ -123,6 +125,35 @@ textarea{min-height:90px;resize:vertical}.full{grid-column:1/-1}
 <div class="editor-grid"><article class="editor-card"><h2>🤲 Nova campanha</h2><label>Nome<input id="camp_name"></label><label>Descrição<textarea id="camp_description" rows="5"></textarea></label><label>Meta em R$<input id="camp_goal" type="number" min="0" step="0.01"></label><label class="check"><input id="camp_public" type="checkbox" checked> Visível ao público</label><label class="check"><input id="camp_active" type="checkbox" checked> Ativa</label><button class="btn gold" onclick="createCampaign()">Criar campanha</button></article><article class="editor-card full"><h2>Campanhas</h2><div id="campaignsList" class="record-list"></div></article></div>
 </section>
 
+<section id="rodape" class="panel-section">
+<div class="editor-grid">
+<article class="editor-card full"><h2>🧱 Rodapé</h2><p class="help">Controle os textos e links da parte inferior do portal.</p>
+<label>Nome exibido <input data-setting="footer_name"></label>
+<label>Texto institucional <textarea data-setting="footer_text" rows="4"></textarea></label>
+<label>Direitos autorais <input data-setting="footer_copyright"></label>
+<label>Texto do aviso/rodapé legal <textarea data-setting="footer_legal" rows="4"></textarea></label>
+<div class="actions"><button class="btn gold" onclick="saveSettingFields('footer_name','footer_text','footer_copyright','footer_legal')">Salvar rodapé</button></div></article>
+<article class="editor-card"><h2>🔗 Links do rodapé</h2>
+<label>Instagram <input data-setting="footer_instagram"></label><label>Facebook <input data-setting="footer_facebook"></label><label>WhatsApp <input data-setting="footer_whatsapp"></label>
+<div class="actions"><button class="btn gold" onclick="saveSettingFields('footer_instagram','footer_facebook','footer_whatsapp')">Salvar links</button></div></article>
+</div></section>
+
+<section id="avancado" class="panel-section">
+<div class="editor-grid">
+<article class="editor-card"><h2>⚙️ Controle de publicação</h2><p class="help">Configurações que afetam a forma como o conteúdo é exibido.</p>
+<label class="check"><input type="checkbox" data-setting-bool="maintenance_mode"> Modo manutenção</label>
+<label class="check"><input type="checkbox" data-setting-bool="show_admin_access"> Mostrar acesso ADM no portal</label>
+<label class="check"><input type="checkbox" data-setting-bool="show_children_access"> Mostrar acesso dos filhos no portal</label>
+<label class="check"><input type="checkbox" data-setting-bool="show_donation_button"> Mostrar botão de doação</label>
+<div class="actions"><button class="btn gold" onclick="saveBooleanSettings('maintenance_mode','show_admin_access','show_children_access','show_donation_button')">Salvar controles</button></div></article>
+<article class="editor-card"><h2>🔄 Restauração rápida</h2><p class="help">Antes de uma alteração grande, registre uma cópia das configurações atuais no histórico.</p>
+<button class="btn secondary" onclick="snapshotSettings()">📦 Registrar snapshot</button>
+<div id="snapshotStatus" class="hint" style="margin-top:10px">Nenhum snapshot registrado nesta sessão.</div>
+</article>
+<article class="editor-card full"><h2>👁️ Pré-visualização</h2><p class="help">Abra o portal público em uma nova aba para conferir a alteração antes de continuar.</p>
+<div class="actions"><a class="btn gold" href="index.html" target="_blank" rel="noopener">👁️ Abrir portal</a><a class="btn secondary" href="index.html#inicio" target="_blank" rel="noopener">⭐ Abrir início</a></div></article>
+</div></section>
+
 <section id="midias" class="panel-section">
 <div class="editor-grid"><article class="editor-card"><h2>🖼️ Biblioteca</h2><p class="help">Envie imagem ou vídeo. Até 10 MB. Depois use os botões para aplicar em fundo, capa, logo ou galeria.</p><input id="mediaFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4"><label>Título<input id="mediaTitle"></label><label>Seção<select id="mediaSection"><option value="galeria">Galeria</option><option value="capa">Capa</option><option value="fundo">Fundo</option><option value="logo">Logo</option></select></label><button class="btn gold" onclick="uploadMedia()">Enviar mídia</button></article><article class="editor-card full"><h2>Mídias publicadas</h2><div id="mediaList" class="record-list"></div></article></div>
 </section>
@@ -145,7 +176,20 @@ async function init(){
  await Promise.all([loadSettings(),loadContent(),loadRules(),loadVisibility(),loadEvents(),loadNotices(),loadCampaigns(),loadMedia()]);
  status('Editor pronto. O Comandante controla o portal por aqui.');
 }
-async function loadSettings(){const {data,error}=await sb.from('public_settings').select('key,value');if(error){status('Erro ao carregar configurações: '+error.message);return}(data||[]).forEach(x=>setField('data-setting',x.key,x.value));}
+async function loadSettings(){
+ const {data,error}=await sb.from('public_settings').select('key,value');if(error){status('Erro ao carregar configurações: '+error.message);return}
+ (data||[]).forEach(x=>{setField('data-setting',x.key,x.value);const b=document.querySelector('[data-setting-bool="'+x.key+'"]');if(b)b.checked=String(x.value)!=='false'});
+}
+async function saveBooleanSettings(...keys){for(const key of keys){const el=document.querySelector('[data-setting-bool="'+key+'"]');if(!el)continue;const {error}=await sb.from('public_settings').upsert({key,value:el.checked?'true':'false',updated_at:new Date().toISOString()},{onConflict:'key'});if(error){alert(error.message);return}}status('Controles de publicação salvos.')}
+async function snapshotSettings(){
+ const {data,error}=await sb.from('public_settings').select('key,value').order('key');
+ if(error){alert(error.message);return}
+ const row={key:'editor_snapshot_'+Date.now(),value:JSON.stringify(data||[]),updated_at:new Date().toISOString()};
+ const q=await sb.from('public_settings').insert(row);
+ if(q.error){alert(q.error.message);return}
+ $('snapshotStatus').textContent='Snapshot registrado em '+new Date().toLocaleString('pt-BR')+'.';
+ status('Snapshot registrado.');
+}
 async function saveSettingFields(...keys){for(const key of keys){const el=fields('data-setting',key);if(!el)continue;const {error}=await sb.from('public_settings').upsert({key,value:el.value},{onConflict:'key'});if(error){alert(error.message);return}}status('Configuração salva e publicada.')}
 async function loadContent(){const {data,error}=await sb.from('site_content').select('section,content_key,title,body').order('sort_order');if(error)return;(data||[]).forEach(x=>{setField('data-content',x.section+':'+x.content_key,x.body||x.title||'')});}
 async function saveContentFields(section,...keys){for(const key of keys){const el=fields('data-content',section+':'+key);if(!el)continue;const v=el.value;const row={section,content_key:key,title:key==='title'?v:null,body:v,active:true,updated_by:USER.id};const {error}=await sb.from('site_content').upsert(row,{onConflict:'section,content_key'});if(error){alert(error.message);return}}status('Conteúdo salvo e publicado.')}
