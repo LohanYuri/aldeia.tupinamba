@@ -32,11 +32,16 @@ async function init(){
  const {data:p}=await sb.from('profiles').select('id,full_name,role,active,username').eq('id',session.user.id).maybeSingle();
  if(!p||p.role!=='financeiro'||!p.active){await sb.auth.signOut();location.href='login-adm.html';return}
  me=p;document.getElementById('who').textContent=(p.full_name||'Comandante')+' • COMANDANTE GERAL';
- nav.innerHTML=[
- ['dashboard','🏠 Geral'],['escala','📅 Escala automática'],['membros','👥 Filhos'],['logins','🔐 Logins ADM'],
- ['avisos','🚨 Avisos ADM'],['portal','📢 Portal'],['financeiro','🧾 Cotas/Mensalidades'],
- ['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['integracoes','📲 Integrações'],['editorPortal','🎨 Editor do Portal'],['ocorrencias','⚖️ Ocorrências'],['relatorios','📊 Relatório mensal'],['regras','📜 Regras/PIX'],['auditoria','🛡️ Auditoria']
- ].map((x,i)=>'<button class="'+(i?'':'active')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('');
+ nav.innerHTML=(function(){
+ const groups=[
+  ['COMANDO',['dashboard','🏠 Visão geral'],['avisos','🚨 Avisos ADM'],['ocorrencias','⚖️ Ocorrências'],['auditoria','🛡️ Auditoria']],
+  ['PESSOAS E ACESSOS',['membros','👥 Filhos'],['logins','🔐 Acessos e senhas']],
+  ['PORTAL',['portal','📢 Comunicados'],['editorPortal','🎨 Editor do Portal'],['regras','📜 Regras e dados'],['integracoes','📲 Integrações']],
+  ['FINANCEIRO',['financeiro','🧾 Cotas/Mensalidades'],['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['relatorios','📊 Relatório mensal']],
+  ['ESCALAS',['escala','📅 Escalas']]
+ ];
+ return groups.map((g,gi)=>'<div class="nav-group-title">'+g[0]+'</div>'+g.slice(1).map((x,i)=>'<button class="'+(gi===0&&i===0?'active':'')+'" onclick="go(\\''+x[0]+'\\',this)">'+x[1]+'</button>').join('')).join('');
+ })();
  await loadBase();dashboard();
 }
 async function loadBase(){
