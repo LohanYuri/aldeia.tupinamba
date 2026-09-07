@@ -400,59 +400,65 @@
     try{
       const client=window.ALDEIA_SUPABASE;
       if(!client)return;
-      const {data,error}=await client.from("public_settings").select("key,value");
-      if(error||!data)return;
-      const settings=Object.fromEntries(data.map(x=>[x.key,x.value]));
-      window.__ALDEIA_SETTINGS=settings;
-      window.ALDEIA_DATA.site=window.ALDEIA_DATA.site||{};
-      if(settings.site_name)window.ALDEIA_DATA.site.name=settings.site_name;
-      if(settings.site_subtitle)window.ALDEIA_DATA.site.subtitle=settings.site_subtitle;
-      if(settings.site_city)window.ALDEIA_DATA.site.city=settings.site_city;
-      if(settings.site_address)window.ALDEIA_DATA.site.address=settings.site_address;
-      window.ALDEIA_DATA.contact=window.ALDEIA_DATA.contact||{};
-      if(settings.whatsapp)window.ALDEIA_DATA.contact.whatsapp=settings.whatsapp;
-      if(settings.whatsapp_display)window.ALDEIA_DATA.contact.whatsappDisplay=settings.whatsapp_display;
-      if(settings.contact_message)window.ALDEIA_DATA.contact.message=settings.contact_message;
-      window.ALDEIA_DATA.donation=window.ALDEIA_DATA.donation||{};
-      if(settings.pix_key)window.ALDEIA_DATA.donation.pixKey=settings.pix_key;
-      if(settings.donation_note)window.ALDEIA_DATA.donation.note=settings.donation_note;
-      document.title=(settings.seo_title||settings.site_name||window.ALDEIA_DATA.site.name||'Aldeia Tupinambá')+(settings.seo_title?'':' | Portal Oficial');
-      const meta=document.querySelector('meta[name="description"]');if(meta&&settings.seo_description)meta.setAttribute('content',settings.seo_description);
-      const root=document.documentElement;
-      if(settings.accent_color){root.style.setProperty('--gold',settings.accent_color);root.style.setProperty('--gold2',settings.accent_color);}
-      if(settings.background_color)document.body.style.backgroundColor=settings.background_color;
-      const overlay=Math.max(0,Math.min(.9,Number(settings.background_overlay??.74)));
-      if(settings.background_image){
-        document.body.style.backgroundImage='linear-gradient(rgba(5,3,1,'+overlay+'),rgba(5,3,1,'+Math.min(.95,overlay+.08)+')),url("'+String(settings.background_image).replace(/"/g,'')+'")';
-      }
-      if(settings.hero_image){
-        const hero=document.querySelector('#inicio');
-        if(hero)hero.style.backgroundImage='linear-gradient(90deg,rgba(5,3,1,'+Math.min(.9,overlay)+'),rgba(5,3,1,'+Math.max(.08,overlay-.38)+')),url("'+String(settings.hero_image).replace(/"/g,'')+'")';
-      }
-      const logo=document.querySelector('.brand-mark');
-      if(settings.logo_image&&logo){
-        logo.textContent='';logo.style.backgroundImage='url("'+String(settings.logo_image).replace(/"/g,'')+'")';logo.style.backgroundSize='cover';logo.style.backgroundPosition='center';logo.style.width='42px';logo.style.height='42px';logo.style.borderRadius='50%';
-      }
-      document.querySelectorAll('[data-site-name]').forEach(el=>el.textContent=settings.site_name||window.ALDEIA_DATA.site.name);
-      document.querySelectorAll('[data-site-subtitle]').forEach(el=>el.textContent=settings.site_subtitle||window.ALDEIA_DATA.site.subtitle);
-      document.querySelectorAll('[data-footer-name]').forEach(el=>el.textContent=settings.site_name||window.ALDEIA_DATA.site.name);
-      document.querySelectorAll('[data-site-footer]').forEach(el=>el.textContent=settings.site_footer||'Terreiro de Umbanda • Axé, paz e luz');
-      document.querySelectorAll('[data-private-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.private_hours||window.ALDEIA_DATA.schedule?.[0]?.text||'').replace(/\\n/g,'<br>'));
-      document.querySelectorAll('[data-friday-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.friday_hours||window.ALDEIA_DATA.schedule?.[1]?.text||'').replace(/\\n/g,'<br>'));
-      document.querySelectorAll('[data-instagram]').forEach(el=>{if(settings.instagram){el.href=settings.instagram;el.style.display='inline-flex'}else el.style.display='none'});
-      document.querySelectorAll('[data-facebook]').forEach(el=>{if(settings.facebook){el.href=settings.facebook;el.style.display='inline-flex'}else el.style.display='none'});
-      document.querySelectorAll('[data-whatsapp]').forEach(el=>{const digits=normalizeWhatsApp(settings.whatsapp||window.ALDEIA_DATA.contact.whatsapp);if(digits)el.href='https://wa.me/'+digits});
-      document.querySelectorAll('[data-pix-key]').forEach(el=>el.textContent=settings.pix_key||window.ALDEIA_DATA.donation.pixKey||'PIX não cadastrado');
-      const purposeSelect=document.querySelector('[name="donationPurpose"]');
-      if(purposeSelect&&settings.donation_purposes){
-        const old=purposeSelect.value;
-        const lines=String(settings.donation_purposes).split(/\\n/).map(x=>x.trim()).filter(Boolean);
-        purposeSelect.innerHTML='<option value="">Selecione uma finalidade</option>'+lines.map(x=>'<option>'+escapeHtml(x)+'</option>').join('')+'<option>✍️ Outra finalidade</option>';
-        if(old&&[...purposeSelect.options].some(o=>o.value===old))purposeSelect.value=old;
-      }
-      applyPortalOrganization(settings);
-    }catch(e){console.warn("Supabase público indisponível",e);}
+      const [{data:settings},{data:contentRows}]=await Promise.all([
+        client.from('public_settings').select('key,value'),
+        client.from('portal_content').select('section,content_key,title,body').eq('published',true)
+      ]);
+      const map={};(settings||[]).forEach(x=>map[x.key]=x.value);
+      window.__ALDEIA_SETTINGS=map;
+      applyPublicSettings(map);
+      applyCmsContent(contentRows||[]);
+    }catch(e){console.warn('Configurações públicas indisponíveis',e)}
   }
+
+  function applyPublicSettings(settings){
+    const root=document.documentElement;
+    const setVar=(name,key)=>{if(settings[key])root.style.setProperty(name,settings[key])};
+    setVar('--gold','color_primary'); setVar('--gold2','color_accent'); setVar('--green','color_secondary'); setVar('--green2','color_secondary_dark');
+    if(settings.font_family){document.body.style.fontFamily=settings.font_family+',Arial,Helvetica,sans-serif'}
+    if(settings.body_background){
+      document.body.style.backgroundImage='linear-gradient(rgba(5,3,1,.74),rgba(5,3,1,.82)),url("'+String(settings.body_background).replace(/"/g,'&quot;')+'")';
+      document.body.style.backgroundSize='cover';document.body.style.backgroundPosition='center top';document.body.style.backgroundAttachment='fixed';
+    }
+    if(settings.hero_background){
+      const hero=document.querySelector('.hero');if(hero)hero.style.backgroundImage='linear-gradient(90deg,rgba(5,3,1,.72),rgba(5,3,1,.30) 55%,rgba(5,3,1,.15)),url("'+String(settings.hero_background).replace(/"/g,'&quot;')+'")';
+    }
+    document.querySelectorAll('[data-site-name]').forEach(el=>el.textContent=settings.site_name||data.site.name);
+    document.querySelectorAll('[data-site-subtitle]').forEach(el=>el.textContent=settings.site_subtitle||data.site.subtitle);
+    document.querySelectorAll('[data-footer-name]').forEach(el=>el.textContent=settings.footer_name||settings.site_name||data.site.name);
+    document.querySelectorAll('[data-site-footer]').forEach(el=>el.textContent=settings.footer_text||'Terreiro de Umbanda • Axé, paz e luz');
+    if(settings.footer_copyright){
+      const y=document.querySelector('[data-year]');if(y)y.textContent=settings.footer_copyright.replace('{ano}',new Date().getFullYear());
+    }
+    document.querySelectorAll('[data-whatsapp]').forEach(el=>{
+      const digits=normalizeWhatsApp(settings.whatsapp||data.contact?.whatsapp);
+      if(digits){el.href='https://wa.me/'+digits}
+      if(el.querySelector('span'))el.querySelector('span').textContent='Fale Conosco';
+    });
+    document.querySelectorAll('[data-instagram]').forEach(el=>{if(settings.instagram){el.href=settings.instagram;el.style.display='inline-flex'}else el.style.display='none'});
+    document.querySelectorAll('[data-facebook]').forEach(el=>{if(settings.facebook){el.href=settings.facebook;el.style.display='inline-flex'}else el.style.display='none'});
+    document.querySelectorAll('[data-pix-key]').forEach(el=>el.textContent=settings.pix_key||data.donation?.pixKey||'PIX não cadastrado');
+    document.querySelectorAll('[data-private-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.private_hours||data.schedule?.[0]?.text||'').replace(/\n/g,'<br>'));
+    document.querySelectorAll('[data-friday-hours]').forEach(el=>el.innerHTML=escapeHtml(settings.friday_hours||data.schedule?.[1]?.text||'').replace(/\n/g,'<br>'));
+    const note=document.querySelector('[data-donation-note]');if(note)note.textContent=settings.donation_note||data.donation?.note||'';
+    if(settings.footer_instagram||settings.footer_facebook){
+      document.querySelectorAll('[data-instagram]').forEach(el=>{if(settings.footer_instagram)el.href=settings.footer_instagram});
+      document.querySelectorAll('[data-facebook]').forEach(el=>{if(settings.footer_facebook)el.href=settings.footer_facebook});
+    }
+    const maintenance=String(settings.maintenance_mode)==='true';
+    if(maintenance){
+      const main=document.querySelector('main');
+      if(main&&!document.querySelector('.maintenance-overlay')){
+        const d=document.createElement('div');d.className='maintenance-overlay';d.innerHTML='<div><span class="eyebrow">PORTAL TEMPORARIAMENTE FECHADO</span><h2>Estamos preparando novidades</h2><p>Volte em breve. A administração está atualizando o portal.</p></div>';
+        document.body.appendChild(d);
+      }
+    }
+    if(String(settings.show_donation_button)==='false')document.querySelectorAll('a[href="#doacoes"]').forEach(el=>el.style.display='none');
+    if(String(settings.show_admin_access)==='false')document.querySelectorAll('.access .btn').forEach(el=>{if(el.textContent.includes('ADM'))el.style.display='none'});
+    if(String(settings.show_children_access)==='false')document.querySelectorAll('.access .btn').forEach(el=>{if(el.textContent.includes('Filhos'))el.style.display='none'});
+    applyPortalOrganization(settings);
+  }
+
 
   document.addEventListener("DOMContentLoaded", async () => {
     await syncPublicSettings();
