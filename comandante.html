@@ -70,7 +70,7 @@ async function integracoes(){
  '<div class="command-grid">'+rows.map(x=>card(x.provider==='whatsapp_cloud'?'📲 WhatsApp Business':'💰 Nubank / Pix','<span class="pill '+status(x.status)+'">'+esc(x.status==='configured'?'CONECTADO':x.status==='error'?'ERRO':'NÃO CONFIGURADO')+'</span><p>Último evento: '+esc(x.last_event_at?new Date(x.last_event_at).toLocaleString('pt-BR'):'—')+'</p><p class="mini">'+esc(x.last_error||'Pronto para receber configuração oficial.')+'</p>')).join('')+'</div>'+
  '<div class="notice-box">🔐 <b>WhatsApp:</b> usamos webhook oficial e assinatura da Meta. <b>Pix/Nubank:</b> a confirmação bancária só será marcada como automática quando existir uma integração oficial disponível para a conta.</div>'+
  '<div class="notice-box accountability-critical">⚠️ Nunca informe senha, código SMS, PIN ou token bancário neste painel.</div>'+
- '<h3>🔗 Webhook WhatsApp</h3><div class="ack"><b>Endpoint:</b> <code>/functions/v1/whatsapp-webhook</code><p>O endpoint já está publicado no Supabase. Falta configurar o aplicativo WhatsApp Business/Meta para apontar o webhook e fornecer as credenciais por secrets.</p></div>';
+ '<h3>🔗 Webhook WhatsApp</h3><div class="ack"><b>Endpoint:</b> <code>/functions/v1/whatsapp-webhook</code><p>O endpoint está publicado no Supabase. Na Meta/WhatsApp Business, use este endpoint e cadastre o token de verificação e o App Secret como Secrets do Supabase.</p><p><b>Verify Token:</b> <code>WHATSAPP_VERIFY_TOKEN</code><br><b>App Secret:</b> <code>WHATSAPP_APP_SECRET</code></p><p class="mini">Nunca coloque senha, token ou App Secret diretamente no código do portal.</p></div>';
 }
 async function dashboard(){
  const {data:summary,error}=await sb.rpc('commander_dashboard_summary',{p_month:today().slice(0,7)+'-01'});
