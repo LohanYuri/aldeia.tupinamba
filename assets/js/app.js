@@ -1,7 +1,7 @@
 (() => {
   const $ = (s, root = document) => root.querySelector(s);
   const data = window.ALDEIA_DATA || {};
-  const event = data.events?.[0];
+  let event = data.events?.[0];
 
   const toast = (message) => {
     const el = $("#toast");
@@ -266,14 +266,67 @@
     }catch(e){console.warn('Não foi possível registrar a intenção de doação',e)}
   }
 
+  async function syncEvents(){
+    try{
+      const client=window.ALDEIA_SUPABASE;
+      if(!client)return;
+      const {data:events}=await client.from('events').select('id,title,event_date,start_time,description').eq('active',true).order('event_date',{ascending:true}).limit(20);
+      if(events?.length){
+        event={id:events[0].id,title:events[0].title,date:new Date(events[0].event_date+'T12:00:00').toLocaleDateString('pt-BR'),time:events[0].start_time?String(events[0].start_time).slice(0,5):'',address:window.ALDEIA_DATA.site?.address||'',city:window.ALDEIA_DATA.site?.city||''};
+        window.ALDEIA_EVENTS=events;
+      }else event=null;
+    }catch(e){console.warn('Eventos públicos indisponíveis',e)}
+  }
+
+  async function syncPortalMedia(){
+    try{
+      const client=window.ALDEIA_SUPABASE;
+      if(!client)return;
+      const {data:media}=await client.from('portal_media').select('id,section,title,public_url,media_type').eq('active',true).order('sort_order',{ascending:true}).order('created_at',{ascending:false});
+      const gallery=document.querySelector('#galeria .gallery-grid');
+      if(gallery){
+        const items=(media||[]).filter(m=>m.section==='galeria');
+        gallery.innerHTML=items.length?items.map(m=>m.media_type==='video'
+          ? '<article class="card"><video src="'+escapeHtml(m.public_url)+'" controls playsinline style="width:100%;border-radius:14px"></video><h3>'+escapeHtml(m.title||'Vídeo')+'</h3></article>'
+          : '<article class="card"><img src="'+escapeHtml(m.public_url)+'" alt="'+escapeHtml(m.title||'Imagem da Aldeia')+'" loading="lazy" style="width:100%;border-radius:14px;aspect-ratio:4/3;object-fit:cover"><h3>'+escapeHtml(m.title||'Imagem da Aldeia')+'</h3></article>').join('')
+          : '<div class="notice"><b>Galeria</b><span>As imagens e vídeos da Aldeia aparecerão aqui quando forem publicados pela administração.</span></div>';
+      }
+      const find=s=>media?.find(m=>m.section===s);
+      window.ALDEIA_MEDIA=media||[];
+      window.ALDEIA_MEDIA_BY_SECTION={};
+      ['capa','fundo','logo'].forEach(s=>{const m=find(s);if(m)window.ALDEIA_MEDIA_BY_SECTION[s]=m.public_url});
+    }catch(e){console.warn('Mídias públicas indisponíveis',e)}
+  }
+
+  function applyCmsContent(rows){
+    const map={};
+    (rows||[]).forEach(r=>map[r.section+':'+r.content_key]=r);
+    const set=(sel,value)=>{const el=document.querySelector(sel);if(el&&value!==undefined)el.textContent=value};
+    set('#inicio .eyebrow',map['inicio:eyebrow']?.body||map['inicio:eyebrow']?.title);
+    set('#inicio h1',map['inicio:title']?.body||map['inicio:title']?.title);
+    set('#inicio .hero-copy>p',map['inicio:lead']?.body||map['inicio:lead']?.title);
+    set('#aldeia h2',map['aldeia:title']?.body||map['aldeia:title']?.title);
+    set('#aldeia>div>p',map['aldeia:body']?.body);
+    set('#consultas h2',map['consultas:title']?.body||map['consultas:title']?.title);
+    set('#consultas .lead',map['consultas:body']?.body);
+    set('#doutrina h2',map['doutrina:title']?.body||map['doutrina:title']?.title);
+    set('#doutrina .cms-body',map['doutrina:body']?.body);
+    set('#avisos h2',map['avisos:title']?.body||map['avisos:title']?.title);
+    set('#contato h2',map['contato:title']?.body||map['contato:title']?.title);
+    set('#contato .lead',map['contato:body']?.body);
+    set('#regras h2',map['regras:title']?.body||map['regras:title']?.title);
+  }
+
   async function syncPortalContent(){
     try{
       const client=window.ALDEIA_SUPABASE;
       if(!client) return;
-      const [{data:notices},{data:rules}]=await Promise.all([
+      const [{data:notices},{data:rules},{data:cms}]=await Promise.all([
         client.from("notices").select("title,body,created_at").eq("published",true).eq("audience","todos").order("created_at",{ascending:false}).limit(8),
-        client.from("rule_versions").select("title,body,version").eq("active",true).order("published_at",{ascending:false}).limit(1)
+        client.from("rule_versions").select("title,body,version").eq("active",true).order("published_at",{ascending:false}).limit(1),
+        client.from("site_content").select("section,content_key,title,body").eq("active",true).order("sort_order",{ascending:true})
       ]);
+      applyCmsContent(cms);
       const noticeBox=document.querySelector("#avisos .notice");
       if(noticeBox){
         noticeBox.innerHTML=notices?.length
@@ -294,10 +347,23 @@
       const {data,error}=await client.from("public_settings").select("key,value");
       if(error||!data) return;
       const settings=Object.fromEntries(data.map(x=>[x.key,x.value]));
+      window.ALDEIA_DATA.site=window.ALDEIA_DATA.site||{};
+      if(settings.site_name)window.ALDEIA_DATA.site.name=settings.site_name;
+      if(settings.site_subtitle)window.ALDEIA_DATA.site.subtitle=settings.site_subtitle;
+      if(settings.site_city)window.ALDEIA_DATA.site.city=settings.site_city;
+      if(settings.site_address)window.ALDEIA_DATA.site.address=settings.site_address;
       if(settings.whatsapp){
         window.ALDEIA_DATA.contact=window.ALDEIA_DATA.contact||{};
         window.ALDEIA_DATA.contact.whatsapp=settings.whatsapp;
+        window.ALDEIA_DATA.contact.whatsappDisplay=settings.whatsapp_display||settings.whatsapp;
       }
+      document.title=(settings.site_name||window.ALDEIA_DATA.site.name||'Aldeia Tupinambá')+' | Portal Oficial';
+      const root=document.documentElement;
+      if(settings.background_color)root.style.setProperty('--cms-background-color',settings.background_color);
+      if(settings.background_image)document.body.style.backgroundImage='linear-gradient(rgba(0,0,0,.16),rgba(0,0,0,.16)),url("'+String(settings.background_image).replace(/"/g,'')+'")';
+      if(settings.hero_image){const hero=document.querySelector('#inicio');if(hero)hero.style.setProperty('--cms-hero-image','url("'+String(settings.hero_image).replace(/"/g,'')+'")')}
+      const logo=document.querySelector('.brand-mark');
+      if(settings.logo_image&&logo){logo.textContent='';logo.style.backgroundImage='url("'+String(settings.logo_image).replace(/"/g,'')+'")';logo.style.backgroundSize='cover';logo.style.backgroundPosition='center';logo.style.width='42px';logo.style.height='42px';logo.style.borderRadius='50%';}
       if(settings.pix_key){
         window.ALDEIA_DATA.donation=window.ALDEIA_DATA.donation||{};
         window.ALDEIA_DATA.donation.pixKey=settings.pix_key;
@@ -315,6 +381,8 @@
   document.addEventListener("DOMContentLoaded", async () => {
     await syncPublicSettings();
     await syncPortalContent();
+    await syncEvents();
+    await syncPortalMedia();
     await trackPortalVisit();
     await loadDonationCampaigns();
     const year = new Date().getFullYear();
