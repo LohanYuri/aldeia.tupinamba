@@ -1,7 +1,4 @@
 -- Portal CMS: conteúdo, visual e biblioteca de mídias editáveis pelo Comandante
-alter table public.site_content
-  add constraint site_content_section_key_unique unique (section, content_key);
-
 create table if not exists public.portal_media (
   id uuid primary key default gen_random_uuid(),
   section text not null,
