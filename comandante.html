@@ -29,14 +29,28 @@
 @media(max-width:1000px){.command-nav{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.command-nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:8px}.command-form{grid-template-columns:1fr}.command-quick{grid-template-columns:1fr}.command-hero{padding:17px;border-radius:16px}}
 @media(max-width:520px){.command-nav{grid-template-columns:1fr}.nav-group{padding:7px}.command-nav button{padding:9px}.command-grid{grid-template-columns:1fr}}
+
+/* ===== CENTRAL DO COMANDANTE • ORGANIZAÇÃO E NAVEGAÇÃO ===== */
+.command-workspace{display:grid;grid-template-columns:280px minmax(0,1fr);gap:18px;align-items:start}
+.command-nav{display:flex;flex-direction:column;gap:8px;margin:0;padding:10px;position:sticky;top:78px;max-height:calc(100vh - 92px);overflow:auto;overscroll-behavior:contain}
+.nav-group{background:#faf8f3;border:1px solid #ebe4d5;border-radius:12px;padding:0;overflow:hidden}
+.command-nav .nav-group-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:10px 9px;font-size:10px;font-weight:900;letter-spacing:.10em;text-transform:uppercase;color:#8b6415;cursor:pointer;list-style:none}
+.command-nav .nav-group-title::-webkit-details-marker{display:none}
+.command-nav .nav-group-title::after{content:'⌄';font-size:14px;transition:transform .2s}
+.nav-group[open]>.nav-group-title::after{transform:rotate(180deg)}
+.command-nav button{margin:1px 7px;width:calc(100% - 14px);padding:9px 8px}
+#view{min-width:0;scroll-margin-top:92px}
+#view>h2:first-child,#view>.section-head:first-child,#view>.adm-section-head:first-child{margin-top:0}
+@media(min-width:761px){.command-nav .nav-group>.nav-group-title{cursor:default}.command-nav .nav-group>.nav-group-title::after{display:none}.command-nav .nav-group:not([open])>*:not(.nav-group-title){display:block}}
+@media(max-width:760px){.command-workspace{display:block}.command-nav{position:relative;top:auto;max-height:none;margin:0 0 14px;padding:8px;gap:7px}.nav-group{width:100%}.command-nav button{padding:10px 9px}.command-hero{margin-bottom:12px}.command-hero p{line-height:1.45}#view{scroll-margin-top:18px}}
+@media(max-width:520px){.command-workspace{width:100%}.command-nav{border-radius:13px}.command-nav .nav-group-title{padding:11px 9px}.command-nav button{font-size:13px;padding:10px 9px}}
 </style>
 </head>
 <body class="internal">
 <header class="top"><a class="brand" href="index.html"><span class="brand-mark">✦</span><span><b>Aldeia Tupinambá</b><small>Comando geral dos ADMs</small></span></a><span id="who">Comandante Financeiro</span><button class="btn secondary" onclick="sair()">Sair</button></header>
 <main class="panel command">
 <section class="command-hero"><span class="eyebrow">COMANDO GERAL</span><h1>👑 Central do Comandante Geral</h1><p>O ponto central de controle da casa: membros, escalas, financeiro, avisos, regras, portal, PIX, logins e relatórios.</p><div class="notice-box">🔐 <b>Acesso administrativo máximo.</b> Somente o Comandante Geral pode operar esta central e administrar acessos, senhas e permissões. Todas as ações ficam registradas no histórico.</div></section>
-<nav class="command-nav" id="nav"></nav>
-<section id="view"></section>
+<div class="command-workspace"><nav class="command-nav" id="nav"></nav><section id="view"></section></div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/supabase-config.js?v=20260907-2"></script>
@@ -62,7 +76,7 @@ async function init(){
   ['FINANCEIRO',['financeiro','🧾 Cotas/Mensalidades'],['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['relatorios','📊 Relatório mensal']],
   ['ESCALAS',['escala','📅 Escalas']]
  ];
- return groups.map((g,gi)=>'<div class="nav-group"><div class="nav-group-title">'+g[0]+'</div>'+g.slice(1).map((x,i)=>'<button class="'+(gi===0&&i===0?'active':'')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('')+'</div>').join('');
+ return groups.map((g,gi)=>'<details class="nav-group" '+(gi===0?'open':'')+'><summary class="nav-group-title">'+g[0]+'</summary>'+g.slice(1).map((x,i)=>'<button type="button" class="'+(gi===0&&i===0?'active':'')+'" onclick="go(\\''+x[0]+'\\',this)">'+x[1]+'</button>').join('')+'</details>').join('');
 })();
  await loadBase();dashboard();
 }
@@ -73,7 +87,7 @@ async function loadBase(){
  ]);
  children=c.data||[];users=u.data||[];
 }
-function go(k,b){if(k==='editorPortal'){location.href='portal-editor.html';return}document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,campanhasDoacao,conciliacaoDoacoes,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard)()}
+function go(k,b){if(k==='editorPortal'){location.href='portal-editor.html';return}document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');b?.closest('.nav-group')?.setAttribute('open','');const fn=({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,campanhasDoacao,conciliacaoDoacoes,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard);Promise.resolve(fn()).finally(()=>requestAnimationFrame(()=>document.getElementById('view')?.scrollIntoView({behavior:'smooth',block:'start'})))}
 function card(t,b){return '<article class="command-card"><h3>'+t+'</h3>'+b+'</article>'}
 async function audit(action,entity,entity_id,details){await sb.from('audit_logs').insert({actor_id:me.id,action,entity,entity_id:entity_id||null,details:details||{}})}
 async function portalStats(){
