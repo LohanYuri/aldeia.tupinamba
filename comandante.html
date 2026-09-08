@@ -219,7 +219,7 @@ async function init(){
  if(!session){location.href='login-adm.html';return}
  const {data:p}=await sb.from('profiles').select('id,full_name,role,active,username').eq('id',session.user.id).maybeSingle();
  if(!p||p.role!=='financeiro'||!p.active){await sb.auth.signOut();location.href='login-adm.html';return}
- me=p;document.getElementById('who').textContent=(p.full_name||'Comandante')+' • COMANDANTE GERAL';
+ me=p;document.getElementById('who').textContent=(p.full_name||'Comandante')+' • COMANDANTE GERAL';view.innerHTML='<div class="notice-box" style="margin:18px 0;font-size:16px">⏳ <b>Central carregando...</b><br>Preparando os dados do Comandante.</div>';
  nav.innerHTML=(function(){
  const groups=[
   ['COMANDO',['dashboard','🏠 Visão geral'],['avisos','🚨 Avisos ADM'],['ocorrencias','⚖️ Ocorrências'],['auditoria','🛡️ Auditoria']],
@@ -230,7 +230,7 @@ async function init(){
  ];
  return groups.map((g,gi)=>'<details class="nav-group" '+(gi===0?'open':'')+'><summary class="nav-group-title">'+g[0]+'</summary>'+g.slice(1).map((x,i)=>'<button type="button" class="'+(gi===0&&i===0?'active':'')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('')+'</details>').join('');
 })();
- await loadBase();dashboard();
+ await loadBase();await dashboard();
 }
 async function loadBase(){
  const [c,u]=await Promise.all([
@@ -239,7 +239,7 @@ async function loadBase(){
  ]);
  children=c.data||[];users=u.data||[];
 }
-function go(k,b){if(k==='editorPortal'){location.href='portal-editor.html';return}document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');b?.closest('.nav-group')?.setAttribute('open','');const fn=({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,campanhasDoacao,conciliacaoDoacoes,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard);Promise.resolve(fn()).finally(()=>requestAnimationFrame(()=>document.getElementById('view')?.scrollIntoView({behavior:'smooth',block:'start'})))}
+function go(k,b){if(k==='editorPortal'){location.href='portal-editor.html';return}document.querySelectorAll('.command-nav button').forEach(x=>x.classList.remove('active'));b?.classList.add('active');b?.closest('.nav-group')?.setAttribute('open','');const fn=({dashboard,escala,membros,logins,avisos,portal,financeiro,compras,tesouraria,doacoes,campanhasDoacao,conciliacaoDoacoes,integracoes,ocorrencias,relatorios,regras,auditoria}[k]||dashboard);Promise.resolve(fn()).finally(()=>requestAnimationFrame(()=>document.getElementById('view')?.scrollIntoView({behavior:'auto',block:'start'})))}
 function card(t,b){return '<article class="command-card"><h3>'+t+'</h3>'+b+'</article>'}
 async function audit(action,entity,entity_id,details){await sb.from('audit_logs').insert({actor_id:me.id,action,entity,entity_id:entity_id||null,details:details||{}})}
 async function portalStats(){
