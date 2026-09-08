@@ -369,8 +369,12 @@
       const navLink=document.querySelector('#nav a[href="#'+key+'"]');
       if(navLink)navLink.style.display=visible?'':'none';
     });
-    const labels={inicio:'nav_inicio',aldeia:'nav_aldeia',doutrina:'nav_doutrina',regras:'nav_regras',atendimentos:'nav_atendimentos',convites:'nav_eventos',doacoes:'nav_doacoes',filhos:'nav_filhos',adm:'nav_adm',contato:'nav_contato'};
+    const labels={inicio:'nav_inicio',aldeia:'nav_aldeia',doutrina:'nav_doutrina',regras:'nav_regras',atendimentos:'nav_atendimentos',convites:'nav_eventos',doacoes:'nav_doacoes',contato:'nav_contato'};
     Object.entries(labels).forEach(([id,key])=>{const a=document.querySelector('#nav a[href="#'+id+'"]');if(a&&settings[key])a.textContent=settings[key]});
+    const filhosLink=document.querySelector('#nav a[href="filhos.html"]');
+    const admLink=document.querySelector('#nav a[href="adm/"]');
+    if(filhosLink&&settings.nav_filhos)filhosLink.textContent=settings.nav_filhos;
+    if(admLink&&settings.nav_adm)admLink.textContent=settings.nav_adm;
   }
 
   async function syncPublicScales(){
