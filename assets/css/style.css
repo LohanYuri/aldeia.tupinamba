@@ -65,3 +65,58 @@ body.internal .notice{background:#fffaf0!important;color:#30291d!important;borde
 
 .maintenance-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:25px;background:rgba(5,3,1,.94);text-align:center}.maintenance-overlay>div{max-width:650px;padding:42px;border:1px solid rgba(216,174,69,.5);border-radius:22px;background:rgba(12,8,4,.96);box-shadow:0 25px 80px #000}.maintenance-overlay h2{margin:10px 0;color:#fff}.maintenance-overlay p{color:#d8d0c4;font-size:17px}
 .public-scales{display:grid;gap:12px}.public-scale-card{display:grid;grid-template-columns:190px 1fr;gap:18px;align-items:center;padding:18px;border:1px solid rgba(216,174,69,.25);border-radius:16px;background:rgba(18,12,7,.72)}.public-scale-date{display:flex;flex-direction:column;gap:5px}.public-scale-date b{text-transform:capitalize}.public-scale-date span{opacity:.65}@media(max-width:650px){.public-scale-card{grid-template-columns:1fr;gap:8px}}
+/* ===== FINAL UI PASS • PORTAL + COMANDO ===== */
+
+/* Public portal: shorter sections, cleaner hierarchy, no accidental overlap. */
+html{scroll-behavior:smooth}
+body{overflow-x:hidden}
+.section{padding:62px 7%;position:relative}
+.section h2{margin-top:6px}
+.section .lead{margin-top:0;line-height:1.55}
+#aldeia.section{padding-top:54px;padding-bottom:54px}
+#consultas.section,#galeria.section,#avisos.section{padding-top:54px;padding-bottom:54px}
+.home-highlights{margin-top:-26px}
+.home-highlights article{min-height:160px;padding:23px 28px}
+.access{padding:60px 7%}
+.access .hero-actions{margin-top:18px}
+
+/* Commander: one clean sidebar + one content column. */
+.command{width:min(1320px,96%);padding:24px}
+.command-hero{margin-bottom:16px}
+.command-sidebar{min-width:0}
+.command-workspace{grid-template-columns:260px minmax(0,1fr);gap:16px}
+.command-sidebar{position:sticky;top:76px;align-self:start}
+.command-sidebar .sidebar-label{font-size:10px;font-weight:900;letter-spacing:.14em;color:#8b6415;margin:0 0 7px 4px}
+.command-nav{position:static!important;top:auto!important;max-height:calc(100vh - 110px)!important}
+.command-view{min-width:0;scroll-margin-top:20px}
+.command-view>div:first-child{margin-top:0}
+.command-card{min-width:0}
+.command-table-wrap{max-width:100%}
+.command-form input,.command-form select,.command-form textarea{box-sizing:border-box;max-width:100%}
+
+/* Strong, readable alert in the green command header. */
+.command-hero>.notice-box{opacity:1!important;color:#241b0b!important;background:#fffaf0!important}
+.command-hero>.notice-box b{color:#241b0b!important}
+
+/* Keep buttons and controls tappable on phones. */
+.command-nav button{min-height:42px}
+@media(max-width:900px){
+  .command{width:94%;padding:18px}
+  .command-workspace{grid-template-columns:1fr}
+  .command-sidebar{position:static}
+  .command-nav{max-height:none!important}
+}
+@media(max-width:760px){
+  .section{padding:52px 7%}
+  .hero{min-height:610px;padding:72px 7% 64px}
+  .home-highlights article{min-height:0;padding:20px}
+  .command-hero{padding:17px}
+  .command-hero h1{font-size:27px}
+}
+@media(max-width:520px){
+  .section{padding:46px 6%}
+  .command{width:94%;padding:12px}
+  .command-workspace{gap:10px}
+  .command-nav{padding:7px}
+  .command-view{overflow:hidden}
+}
