@@ -33,11 +33,15 @@ body.internal{background:#f5f3ed}
 .report-box{border:1px solid #e1dbd0;border-radius:12px;padding:13px;background:#faf9f6}
 .report-list{display:grid;gap:8px;margin-top:12px}
 .report-item{border:1px solid #e1dbd0;border-radius:10px;padding:10px;background:#fff}
+#commanderShell{display:none;position:fixed;inset:0;background:#050403;z-index:90}
+#commanderFrame{width:100%;height:100%;border:0;display:block;background:#050403}
+.commander-shell-bar{position:absolute;top:10px;right:12px;z-index:3;display:flex;gap:8px}
+@media(max-width:760px){#commanderShell{inset:0}.commander-shell-bar{top:6px;right:6px}}
 @media(max-width:760px){.adm-grid,.form-grid,.scores,.report-grid{grid-template-columns:1fr}.adm-card.full{grid-column:auto}.adm-head{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
 <body class="internal">
-<div class="adm-wrap">
+<div id="admApp" class="adm-wrap">
 <header class="adm-head">
 <div>
 <span class="eyebrow" style="color:#e7c15b">ÁREA ADM</span>
@@ -71,6 +75,8 @@ body.internal{background:#f5f3ed}
 </section>
 </div>
 
+<div id="commanderShell" aria-label="Central integrada do Comandante"><div class="commander-shell-bar"><button class="btn secondary" type="button" onclick="fecharCentralComandante()">✕ Voltar à Área ADM</button></div><iframe id="commanderFrame" title="Central do Comandante Financeiro" src="about:blank"></iframe></div>
+
 <div id="commanderModal" hidden style="position:fixed;inset:0;background:#0008;z-index:100;display:none;align-items:center;justify-content:center;padding:16px">
 <div style="background:#fff;border-radius:18px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 60px #0008">
 <h2 style="font-family:Georgia,serif;margin-top:0">👑 Central do Comandante Financeiro</h2>
@@ -103,6 +109,7 @@ async function init(){
 
 function abrirComandante(){const m=document.getElementById('commanderModal');m.hidden=false;m.style.display='flex';setTimeout(()=>document.getElementById('cmdEmail').focus(),50)}
 function fecharComandante(){const m=document.getElementById('commanderModal');m.hidden=true;m.style.display='none';document.getElementById('cmdError').textContent=''}
+function fecharCentralComandante(){document.getElementById('commanderFrame').src='about:blank';document.getElementById('commanderShell').style.display='none';document.getElementById('admApp').style.display='block';}
 async function entrarComandante(){
  const email=document.getElementById('cmdEmail').value.trim(),password=document.getElementById('cmdPassword').value,err=document.getElementById('cmdError');
  err.textContent='';
@@ -113,7 +120,12 @@ async function entrarComandante(){
  if(!p||p.active===false||p.role!=='financeiro'){
    await sb.auth.signOut();err.textContent='Este acesso não é de Comandante Financeiro.';return
  }
- location.href='comandante.html';
+ fecharComandante();
+ const shell=document.getElementById('commanderShell');
+ const frame=document.getElementById('commanderFrame');
+ document.getElementById('admApp').style.display='none';
+ shell.style.display='block';
+ frame.src='comandante.html?embedded=1';
 }
 
 function mostrarQuestionario(){
