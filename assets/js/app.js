@@ -416,7 +416,7 @@
       if(!client)return;
       const [{data:settings},{data:contentRows}]=await Promise.all([
         client.from('public_settings').select('key,value'),
-        client.from('portal_content').select('section,content_key,title,body').eq('published',true)
+        client.from('site_content').select('section,content_key,title,body').eq('active',true)
       ]);
       const map={};(settings||[]).forEach(x=>map[x.key]=x.value);
       window.__ALDEIA_SETTINGS=map;
@@ -428,15 +428,16 @@
   function applyPublicSettings(settings){
     const root=document.documentElement;
     const setVar=(name,key)=>{if(settings[key])root.style.setProperty(name,settings[key])};
-    setVar('--gold','color_primary'); setVar('--gold2','color_accent'); setVar('--green','color_secondary'); setVar('--green2','color_secondary_dark');
+    if(settings.color_primary)root.style.setProperty('--gold',settings.color_primary); else if(settings.accent_color)root.style.setProperty('--gold',settings.accent_color); if(settings.color_accent)root.style.setProperty('--gold2',settings.color_accent); else if(settings.accent_color)root.style.setProperty('--gold2',settings.accent_color); setVar('--green','color_secondary'); setVar('--green2','color_secondary_dark');
     if(settings.font_family){document.body.style.fontFamily=settings.font_family+',Arial,Helvetica,sans-serif'}
-    if(settings.body_background){
-      document.body.style.backgroundImage='linear-gradient(rgba(5,3,1,.74),rgba(5,3,1,.82)),url("'+String(settings.body_background).replace(/"/g,'&quot;')+'")';
+    if(settings.body_background||settings.background_image){
+      document.body.style.backgroundImage='linear-gradient(rgba(5,3,1,.74),rgba(5,3,1,.82)),url("'+String(settings.body_background||settings.background_image).replace(/"/g,'&quot;')+'")';
       document.body.style.backgroundSize='cover';document.body.style.backgroundPosition='center top';document.body.style.backgroundAttachment='fixed';
     }
-    if(settings.hero_background){
-      const hero=document.querySelector('.hero');if(hero)hero.style.backgroundImage='linear-gradient(90deg,rgba(5,3,1,.72),rgba(5,3,1,.30) 55%,rgba(5,3,1,.15)),url("'+String(settings.hero_background).replace(/"/g,'&quot;')+'")';
+    if(settings.hero_background||settings.hero_image){
+      const hero=document.querySelector('.hero');if(hero)hero.style.backgroundImage='linear-gradient(90deg,rgba(5,3,1,.72),rgba(5,3,1,.30) 55%,rgba(5,3,1,.15)),url("'+String(settings.hero_background||settings.hero_image).replace(/"/g,'&quot;')+'")';
     }
+    document.querySelectorAll('[data-logo-image]').forEach(el=>{if(settings.logo_image){el.src=settings.logo_image;el.style.display='block'}});
     document.querySelectorAll('[data-site-name]').forEach(el=>el.textContent=settings.site_name||data.site.name);
     document.querySelectorAll('[data-site-subtitle]').forEach(el=>el.textContent=settings.site_subtitle||data.site.subtitle);
     document.querySelectorAll('[data-footer-name]').forEach(el=>el.textContent=settings.footer_name||settings.site_name||data.site.name);
@@ -499,19 +500,6 @@
       });
     }
 
-    document.querySelectorAll("[data-whatsapp]").forEach((el) => {
-      const digits = normalizeWhatsApp(data.contact?.whatsapp);
-      if (digits) {
-        el.href = "https://wa.me/" + digits;
-        el.textContent = "WhatsApp oficial: (67) 99342-405";
-      }
-    });
-
-    document.querySelectorAll("[data-pix-key]").forEach((el) => {
-      el.textContent = data.donation?.pixKey || "PIX não cadastrado";
-    });
-
-    const note = $("[data-donation-note]");
-    if (note) note.textContent = data.donation?.note || "";
+    // Conteúdo e configurações públicos já foram aplicados pelo Supabase/CMS.
   });
 })();
