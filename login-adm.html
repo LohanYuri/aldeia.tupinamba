@@ -1,15 +1,2 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Acesso ADM | Aldeia Tupinambá</title><link rel="stylesheet" href="assets/css/style.css"></head><body class="login"><main class="loginBox"><div class="bigLogo">✦</div><span class="eyebrow">ALDEIA TUPINAMBÁ</span><h1>Área Administrativa</h1><p>Central de gestão da casa.</p><div class="access-note"><b>👑 Quem cria os acessos?</b><span>Somente o Comandante Geral cria usuários, define senhas, altera permissões e bloqueia acessos.</span></div><label>Usuário administrativo<input id="usuario" type="text" autocomplete="username" placeholder="Digite seu usuário" required></label><label>Senha administrativa<input id="senha" type="password" autocomplete="current-password" placeholder="Digite a senha"></label><button class="btn" style="width:100%;margin-top:12px" onclick="entrar()">Entrar</button><small id="erro"></small><p><a href="index.html">← Voltar ao portal</a></p><div class="notice" style="margin-top:20px;text-align:left"><b>Acesso protegido:</b> o perfil define automaticamente o nível de permissão. O Comandante Financeiro entra na Central de Comando Geral.</div></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="assets/js/supabase-config.js"></script><script>
-const sb=window.ALDEIA_SUPABASE;
-async function entrar(){
- const usuario=document.getElementById('usuario').value.trim(), senha=document.getElementById('senha').value, erro=document.getElementById('erro');
- const loginMap={Lohan:'aldeiatupinamba2027@gmail.com',Dusanto26:'dusanto26@aldeiatupinamba.internal','responsavel01@':'responsavel01@aldeiatupinamba.internal'};
- const email=loginMap[usuario]||usuario;
- erro.textContent='';
- const {data,error}=await sb.auth.signInWithPassword({email,password:senha});
- if(error){erro.textContent='E-mail ou senha incorretos.';return}
- const {data:profile}=await sb.from('profiles').select('full_name,role').eq('id',data.user.id).maybeSingle();
- if(!profile||!['adm','dirigente','financeiro'].includes(profile.role)){await sb.auth.signOut();erro.textContent='Este usuário não possui autorização administrativa.';return}
- sessionStorage.setItem('aldeia_adm_supabase','1');location.href=profile.role==='financeiro'?'comandante.html':'adm.html';
-}
-(async()=>{const {data:{session}}=await sb.auth.getSession();if(session){const {data:p}=await sb.from('profiles').select('role').eq('id',session.user.id).maybeSingle();if(p&&['adm','dirigente','financeiro'].includes(p.role))location.href=p.role==='financeiro'?'comandante.html':'adm.html';}})();
-</script></body></html>
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=adm/"><meta name="robots" content="noindex,nofollow"><title>Área ADM | Aldeia Tupinambá</title></head><body><script>location.replace('adm/');</script><a href="adm/">Abrir Área Administrativa</a></body></html>
