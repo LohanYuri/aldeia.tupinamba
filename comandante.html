@@ -196,6 +196,113 @@ body.internal #view textarea{
   body.internal .command-nav{max-width:820px !important}
 }
 
+
+/* ===== CORREÇÃO FINAL DE LAYOUT: NAVEGAÇÃO SEM SOBREPOSIÇÃO ===== */
+body.internal .command-workspace{
+  display:grid !important;
+  grid-template-columns:minmax(250px,300px) minmax(0,1fr) !important;
+  gap:18px !important;
+  align-items:start !important;
+}
+body.internal .command-sidebar{
+  width:auto !important;
+  min-width:0 !important;
+  margin:0 !important;
+}
+body.internal .command-sidebar .sidebar-label{
+  display:block !important;
+  color:#c99b22 !important;
+  font-size:11px !important;
+  font-weight:900 !important;
+  letter-spacing:.14em !important;
+  margin:0 0 8px 4px !important;
+}
+body.internal .command-nav{
+  position:sticky !important;
+  top:78px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:8px !important;
+  width:100% !important;
+  max-width:none !important;
+  max-height:calc(100vh - 96px) !important;
+  overflow:auto !important;
+  box-sizing:border-box !important;
+  margin:0 !important;
+  padding:10px !important;
+  background:#0b0906 !important;
+  border:1px solid #5f4814 !important;
+  border-radius:16px !important;
+  box-shadow:0 8px 24px rgba(0,0,0,.22) !important;
+}
+body.internal .command-nav .nav-group{
+  display:block !important;
+  width:100% !important;
+  background:#12100c !important;
+  border:1px solid #3d3118 !important;
+  border-radius:12px !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+}
+body.internal .command-nav .nav-group-title{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+  padding:10px 11px !important;
+  color:#d7b765 !important;
+  background:#17130c !important;
+  font-size:10px !important;
+}
+body.internal .command-nav button,
+body.internal .command-nav button.active{
+  display:block !important;
+  box-sizing:border-box !important;
+  width:calc(100% - 14px) !important;
+  min-height:48px !important;
+  margin:4px 7px !important;
+  padding:11px 12px !important;
+  border-radius:11px !important;
+  text-align:left !important;
+  font-size:14px !important;
+  line-height:1.25 !important;
+  color:#f2eadc !important;
+  background:#211b12 !important;
+  border:1px solid #4a3b1b !important;
+  box-shadow:none !important;
+  transform:none !important;
+}
+body.internal .command-nav button:hover{
+  background:#302716 !important;
+  border-color:#b9891f !important;
+  color:#fff !important;
+}
+body.internal .command-nav button.active{
+  background:#c9951e !important;
+  border-color:#f0d38a !important;
+  color:#fff !important;
+}
+body.internal #view{
+  min-width:0 !important;
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+  padding:0 0 70px !important;
+  box-sizing:border-box !important;
+  overflow:visible !important;
+}
+body.internal #view > *{max-width:100% !important;box-sizing:border-box !important}
+@media(max-width:900px){
+  body.internal .command-workspace{grid-template-columns:1fr !important}
+  body.internal .command-nav{position:relative !important;top:auto !important;max-height:none !important}
+}
+@media(max-width:760px){
+  body.internal .command-sidebar .sidebar-label{margin-top:2px !important}
+  body.internal .command-nav{padding:8px !important}
+  body.internal .command-nav button{min-height:52px !important;font-size:15px !important}
+  body.internal #view{padding:0 0 45px !important}
+}
 </style>
 </head>
 <body class="internal">
@@ -223,7 +330,7 @@ async function init(){
  nav.innerHTML=(function(){
  const groups=[
   ['COMANDO',['dashboard','🏠 Visão geral'],['avisos','🚨 Avisos ADM'],['ocorrencias','⚖️ Ocorrências'],['auditoria','🛡️ Auditoria']],
-  ['PESSOAS E ACESSOS',['membros','👥 Filhos'],['logins','🔐 Acessos e senhas']],
+  ['PESSOAS E ACESSOS',['membros','👥 Painel dos Filhos'],['logins','🔐 Acessos e senhas']],
   ['PORTAL',['portal','📢 Comunicados'],['editorPortal','🎨 Editor do Portal'],['regras','📜 Regras e dados'],['integracoes','📲 Integrações']],
   ['FINANCEIRO',['financeiro','🧾 Cotas/Mensalidades'],['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['relatorios','📊 Relatório mensal']],
   ['ESCALAS',['escala','📅 Escalas']]
@@ -320,7 +427,7 @@ async function dashboard(){
  (noticeList||'<div class="attention-item"><span>🟢</span><div><strong>Nenhum aviso publicado</strong><div class="mini muted">Quando o Comandante publicar um aviso, ele aparecerá aqui.</div></div></div>')+
  '</div></div>'+
  '<div class="notice-box" style="margin-top:14px">🔐 <b>Regra de acesso:</b> somente o Comandante Geral cria usuários, define ou redefine senhas, altera permissões, bloqueia e remove acessos. As ações administrativas ficam registradas na auditoria.</div>'+
- '<div class="command-quick"><button class="btn gold" onclick="financeiro()">🧾 Financeiro</button><button class="btn secondary" onclick="membros()">👥 Gerenciar filhos</button><button class="btn secondary" onclick="go(\'editorPortal\',this)">🎨 Editar portal</button></div>'+
+ '<div class="command-quick"><button class="btn gold" onclick="financeiro()">🧾 Financeiro</button><button class="btn secondary" onclick="membros()">👥 Painel dos Filhos</button><button class="btn secondary" onclick="go(\'editorPortal\',this)">🎨 Editar portal</button></div>'+
  '<div class="command-card command-recent"><h3>🛡️ Atividade administrativa recente</h3><div class="command-recent-list">'+(recent||'<span class="muted">Nenhuma ação registrada recentemente.</span>')+'</div></div>'+
  '<div class="notice-box" style="margin-top:10px">💡 <b>WhatsApp:</b> a conexão permanece separada e não será ativada nesta etapa. O portal continua funcionando normalmente sem essa integração.</div>';
  portalStats();
