@@ -120,3 +120,25 @@ body{overflow-x:hidden}
   .command-nav{padding:7px}
   .command-view{overflow:hidden}
 }
+
+/* ===== PORTAL NOVA EXPERIENCIA ===== */
+.hero{position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:12% 10%;background:radial-gradient(circle,rgba(216,174,69,.10),transparent 62%);pointer-events:none}
+.hero-copy{position:relative;z-index:1}
+.hero-copy h1{letter-spacing:-.025em}
+.hero-actions .btn{transition:transform .2s ease,box-shadow .2s ease}
+.hero-actions .btn:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.28)}
+.home-highlights article{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+.home-highlights article:hover{transform:translateY(-4px);border-color:rgba(216,174,69,.55);box-shadow:0 18px 42px rgba(0,0,0,.25)}
+#regras .rules{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+#regras .rules>p{min-height:0;height:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:8px;padding:17px 18px;overflow:hidden}
+#regras .rules>p b{font-size:14px;line-height:1.25;display:block}
+#regras .rules>p br{display:none}
+#regras .rules>p{line-height:1.48}
+.donation-welcome{display:flex;align-items:center;gap:16px;margin:24px 0;padding:20px 22px;border:1px solid rgba(216,174,69,.38);border-radius:18px;background:linear-gradient(110deg,rgba(216,174,69,.10),rgba(255,255,255,.025));box-shadow:0 12px 35px rgba(0,0,0,.18)}
+.donation-welcome-icon{font-size:30px;flex:0 0 auto}
+.donation-welcome div{display:grid;gap:5px}
+.donation-welcome b{color:var(--gold2);letter-spacing:.08em;font-size:13px}
+.donation-welcome span{color:#ddd4c7;line-height:1.45}
+@media(max-width:800px){#regras .rules{grid-template-columns:1fr}.donation-welcome{align-items:flex-start;padding:17px}.donation-welcome-icon{font-size:25px}}
+@media(prefers-reduced-motion:reduce){.hero-actions .btn,.home-highlights article{transition:none}.hero-actions .btn:hover,.home-highlights article:hover{transform:none}}
