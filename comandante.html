@@ -320,12 +320,14 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
 const today=()=>new Date().toISOString().slice(0,10);
 const monthName=d=>new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-const brDate=d=>d?new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR'):'—';
-const brTime=t=>t?String(t).slice(0,5):'—';
+const brDate=d=>{if(!d)return '—';const m=String(d).slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:new Date(d).toLocaleDateString('pt-BR')};
+const brTime=t=>{if(!t)return '—';const m=String(t).match(/(\d{2}):(\d{2})/);return m?m[1]+':'+m[2]:String(t)};
 const normalizeName=n=>String(n||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-zA-Z0-9 ]/g,' ').trim().split(/\\s+/).slice(0,2).join('.');
 const makeUsername=n=>{const x=normalizeName(n).toLowerCase();return x?(x+'@'):'';
 };
 const sharedPasswordKey='aldeia_shared_access_password';
+const getSharedPassword=()=>sessionStorage.getItem(sharedPasswordKey)||'';
+function setSharedPassword(value){const v=String(value||'').trim();if(v.length<8){alert('A senha padrão deve ter pelo menos 8 caracteres.');return false}sessionStorage.setItem(sharedPasswordKey,v);return true}
 const msg=e=>alert(e?.message||e||'Operação concluída.');
 async function init(){
  const {data:{session}}=await sb.auth.getSession();
@@ -657,7 +659,7 @@ async function logins(){
  view.innerHTML=
  '<div class="command-dashboard-head"><div><span class="eyebrow">SEGURANÇA</span><h2>🔐 Acessos e senhas</h2><p class="lead">O Comandante cria os acessos de ADMs e filhos. O médium não precisa fornecer e-mail próprio.</p></div><button class="btn gold" onclick="novoLogin()">➕ Novo acesso</button></div>'+
  '<div class="command-card" style="margin-bottom:14px"><h3>📨 E-mail fixo do terreiro</h3><p class="mini muted">O sistema usa este endereço como caixa institucional. Para cada acesso, cria internamente um alias único; o Comandante não precisa pedir o e-mail do médium.</p><form id="emailSettings" class="command-form"><label class="full">E-mail fixo<input name="fixed_email" type="email" required value="'+esc(window.__fixedAccessEmail)+'" placeholder="email.oficial@..."></label><div class="full"><button class="btn gold">💾 Salvar e-mail fixo</button></div></form></div>'+
- '<div class="notice-box accountability-critical"><b>🔐 Regra:</b> a senha usada no cadastro de ADM e de filho vem do mesmo campo. Se “usar senha padrão” estiver ativo, o painel reaproveita a mesma senha para os próximos acessos desta sessão.</div>'+
+ '<div class="command-card" style="margin-bottom:14px"><h3>🔐 Senha padrão de geração de acessos</h3><p class="mini muted">A mesma senha padrão será usada para gerar <b>ADM e Filho</b>. O tipo de acesso continua diferente pelo perfil. A senha fica somente nesta sessão do Comandante e não é gravada no banco.</p><div class="row-actions"><input id="sharedPasswordField" type="password" minlength="8" placeholder="Defina a senha padrão" value="'+esc(getSharedPassword())+'" style="flex:1;min-width:220px;padding:11px;border:1px solid #d9d5cb;border-radius:10px"><button class="btn gold" type="button" onclick="if(setSharedPassword(document.getElementById(\'sharedPasswordField\').value))alert(\'Senha padrão definida para ADM e Filho nesta sessão.\')">💾 Definir senha padrão</button></div></div>'+
  '<div class="command-grid">'+card('👥 Usuários','<div class="command-stat">'+users.length+'</div><p>Acessos cadastrados.</p>')+card('🟢 Ativos','<div class="command-stat">'+users.filter(x=>x.active).length+'</div><p>Podem entrar.</p>')+card('👤 Filhos com login','<div class="command-stat">'+linked.length+'</div><p>Cadastros vinculados.</p>')+'</div>'+
  '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Usuário</th><th>Nome / vínculo</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+ (rows||'<tr><td colspan="5">Nenhum acesso cadastrado.</td></tr>')+'</tbody></table></div>';
  document.getElementById('emailSettings').onsubmit=async e=>{
@@ -676,7 +678,7 @@ function loginForm(u){
  const child=children.find(c=>c.profile_id===u.id);
  const roleOptions=[['adm','ADM operacional'],['dirigente','Mãe / Dirigente'],['filho','Filho']].map(([v,l])=>'<option value="'+v+'" '+(u.role===v?'selected':'')+'>'+l+'</option>').join('');
  const isNew=!u.id;
- const defaultPwd=isNew?(sessionStorage.getItem(sharedPasswordKey)||''):'';
+ const defaultPwd=getSharedPassword();
  view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">CONTROLE DE ACESSO</span><h2>🔐 '+(u.id?'Editar acesso':'Criar acesso')+'</h2><p class="lead">O login é gerado pelo Comandante. Não é necessário o e-mail pessoal do médium.</p></div><button class="btn secondary" onclick="logins()">← Voltar</button></div>'+
  '<div class="notice-box">📨 <b>E-mail:</b> o sistema usará o e-mail fixo do terreiro configurado na tela anterior e criará um alias interno único para cada acesso.</div>'+
  '<form id="lf" class="command-form"><label>Nome completo<input name="full_name" value="'+esc(u.full_name||child?.full_name||'')+'" required></label>'+
@@ -694,7 +696,7 @@ function loginForm(u){
  lf.onsubmit=async e=>{
    e.preventDefault();const d=Object.fromEntries(new FormData(e.target));
    if(isNew&&!d.password){alert('Informe uma senha ou use “Gerar senha”.');return}
-   if(isNew&&d.shared)d.password&&(sessionStorage.setItem(sharedPasswordKey,d.password));
+   if(d.password&&d.shared){if(!setSharedPassword(d.password))return;}
    const role=u.id===me.id?'financeiro':d.role;
    const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username, password:d.password,role,active:d.active==='on',child_id:child?.id||null};
    const {data,error}=await sb.functions.invoke('admin-users',{body:payload});
@@ -818,16 +820,34 @@ async function fecharMesTesouraria(){const ref=today().slice(0,7)+'-01',rows=win
 async function reabrirMesTesouraria(id){if(!confirm('Reabrir este fechamento? A ação ficará registrada na auditoria.'))return;const q=await sb.from('treasury_closings').update({reopened_at:new Date().toISOString(),reopened_by:me.id}).eq('id',id);if(q.error){msg(q.error);return}await audit('reopen_treasury_month','treasury_closings',id,{reopened_by:me.id});financeiro()}
 async function compras(){
  const month=today().slice(0,7)+'-01';
- const {data}=await sb.from('finance_budget_items').select('*').eq('reference_month',month).order('created_at',{ascending:false});
- view.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><h2>🛒 Checklist do Financeiro</h2><p class="lead">Monte a lista do que precisa ser comprado e transforme orçamento em cota.</p></div><button class="btn gold" onclick="novaCompra()">+ Item / orçamento</button></div>'+
- '<div class="command-grid">'+card('🕯️ Velas','<p>Informe modelos e quantidades no orçamento.</p>')+card('🥤 Bebidas','<p>Ex.: refrigerante, água, suco e quantidades.</p>')+card('🚬 Fumo','<p>Registre o item e a quantidade necessária.</p>')+card('🚬 Charutos','<p>Registre caixa, quantidade e preço.</p>')+'</div>'+
- '<div class="whatsapp" style="margin-top:16px"><b>📲 Lista pronta para WhatsApp</b><p>O botão abaixo monta uma mensagem com todos os itens do mês.</p><button class="btn gold" onclick="whatsCompras()">Abrir WhatsApp com checklist</button></div>'+
- '<h3 style="margin-top:24px">Orçamentos do mês</h3><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Item</th><th>Qtd.</th><th>Preço unit.</th><th>Total</th><th>Por filho</th><th>Ação</th></tr></thead><tbody>'+
- (data||[]).map(x=>'<tr><td><b>'+esc(x.item_name)+'</b><br><span class="mini">'+esc(x.category)+' • '+esc(x.status)+'</span></td><td>'+esc(x.quantity)+' '+esc(x.unit||'')+'</td><td>'+money(x.quoted_price)+'</td><td>'+money(x.total_price)+'</td><td>'+money(x.per_child_amount||0)+'</td><td><div class="row-actions"><button class="btn gold" onclick="gerarCotaOrcamento(\''+x.id+'\')">Gerar cota</button></div></td></tr>').join('')+'</tbody></table></div>';
+ const {data,error}=await sb.from('finance_budget_items').select('*').eq('reference_month',month).order('created_at',{ascending:false});
+ if(error){msg(error);return}
+ const rows=data||[]; window.__budgetItems=rows;
+ const total=rows.reduce((sum,x)=>sum+Number(x.total_price||Number(x.quantity||0)*Number(x.quoted_price||0)),0);
+ view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">ORÇAMENTOS</span><h2>🛒 Checklist do Financeiro</h2><p class="lead">Monte, revise e corrija os orçamentos do mês. O Comandante pode editar ou apagar lançamentos feitos com erro.</p></div><button class="btn gold" onclick="novaCompra()">+ Item / orçamento</button></div>'+
+ '<div class="command-grid">'+card('🕯️ Velas','<p>Informe modelos e quantidades no orçamento.</p>')+card('🥤 Bebidas','<p>Ex.: refrigerante, água, suco e quantidades.</p>')+card('🚬 Fumo','<p>Registre o item e a quantidade necessária.</p>')+card('📦 Total orçado','<div class="money">'+money(total)+'</div><p>'+rows.length+' item(ns) no mês.</p>')+'</div>'+
+ '<div class="whatsapp" style="margin-top:16px"><b>📲 Lista pronta para WhatsApp</b><p>O botão monta uma mensagem com todos os itens do mês.</p><button class="btn gold" onclick="whatsCompras()">Abrir WhatsApp com checklist</button></div>'+
+ '<h3 style="margin-top:24px">Orçamentos de '+monthName(month)+'</h3><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Item</th><th>Qtd.</th><th>Preço unit.</th><th>Total</th><th>Por filho</th><th>Ações</th></tr></thead><tbody>'+
+ (rows.length?rows.map(x=>'<tr><td><b>'+esc(x.item_name)+'</b><br><span class="mini">'+esc(x.category||'')+' • '+esc(x.status||'orcamento')+'</span>'+(x.due_date?'<br><span class="mini muted">Limite: '+brDate(x.due_date)+'</span>':'')+'</td><td>'+esc(x.quantity)+' '+esc(x.unit||'')+'</td><td>'+money(x.quoted_price)+'</td><td>'+money(x.total_price||Number(x.quantity||0)*Number(x.quoted_price||0))+'</td><td>'+money(x.per_child_amount||0)+'</td><td><div class="row-actions"><button class="btn secondary small" onclick="editarCompra(\''+x.id+'\')">✏️ Editar</button><button class="btn outline small" onclick="gerarCotaOrcamento(\''+x.id+'\')">💰 Gerar cota</button><button class="btn danger small" onclick="apagarCompra(\''+x.id+'\')">🗑️ Apagar</button></div></td></tr>').join(''):'<tr><td colspan="6">Nenhum orçamento cadastrado para este mês.</td></tr>')+'</tbody></table></div>'+
+ '<div class="notice-box" style="margin-top:14px">✏️ <b>Correção de erros:</b> use <b>Editar</b> para corrigir item, quantidade, valor ou observações. Use <b>Apagar</b> somente quando o lançamento tiver sido criado por engano.</div>';
 }
-function novaCompra(){view.innerHTML='<h2>🛒 Novo item de compra / orçamento</h2><form id="bf" class="command-form"><label>Categoria<select name="category"><option>Bebidas</option><option>Velas</option><option>Fumo</option><option>Charuto</option><option>Alimentos</option><option>Limpeza</option><option>Material religioso</option><option>Outro</option></select></label><label>Item<input name="item_name" required placeholder="Caixa de charutos"></label><label>Quantidade<input name="quantity" type="number" min="0.01" step="0.01" value="1" required></label><label>Unidade<input name="unit" placeholder="caixa, unidade, pacote..."></label><label>Preço unitário orçado<input name="quoted_price" type="number" step="0.01" required></label><label>Data limite<input name="due_date" type="date"></label><label class="full">Observações<textarea name="notes" rows="4"></textarea></label><div class="full"><button class="btn gold">Salvar orçamento</button><button class="btn secondary" type="button" onclick="compras()">Cancelar</button></div></form>';
- document.getElementById('bf').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const count=children.filter(c=>c.active).length;const total=Number(d.quantity)*Number(d.quoted_price);const {data,error}=await sb.from('finance_budget_items').insert({reference_month:new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-01',category:d.category,item_name:d.item_name,quantity:Number(d.quantity),unit:d.unit||null,quoted_price:Number(d.quoted_price),split_count:count,per_child_amount:count?total/count:0,due_date:d.due_date||null,status:'orcamento',notes:d.notes||null,created_by:me.id}).select().single();if(error){msg(error);return}await audit('create_budget_item','finance_budget_items',data.id,{item:d.item_name,total,split_count:count});compras()}
+function novaCompra(){formCompra({})}
+function editarCompra(id){formCompra((window.__budgetItems||[]).find(x=>x.id===id)||{})}
+async function apagarCompra(id){
+ const item=(window.__budgetItems||[]).find(x=>x.id===id); if(!item)return;
+ if(!confirm('Apagar o orçamento de "'+item.item_name+'"? Esta ação remove o lançamento do orçamento.'))return;
+ const {error}=await sb.from('finance_budget_items').delete().eq('id',id);
+ if(error){msg(error);return}
+ await audit('delete_budget_item','finance_budget_items',id,{item:item.item_name}); alert('Orçamento apagado.'); compras();
 }
+function formCompra(x){
+ const count=children.filter(c=>c.active).length;
+ view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">ORÇAMENTO</span><h2>🛒 '+(x.id?'Editar orçamento':'Novo item de compra / orçamento')+'</h2><p class="lead">Corrija os dados sem precisar recriar o lançamento.</p></div><button class="btn secondary" onclick="compras()">← Voltar</button></div>'+
+ '<form id="bf" class="command-form"><label>Categoria<select name="category"><option>Bebidas</option><option>Velas</option><option>Fumo</option><option>Charuto</option><option>Alimentos</option><option>Limpeza</option><option>Material religioso</option><option>Outro</option></select></label><label>Item<input name="item_name" required value="'+esc(x.item_name||'')+'" placeholder="Caixa de charutos"></label><label>Quantidade<input name="quantity" type="number" min="0.01" step="0.01" value="'+esc(x.quantity||1)+'" required></label><label>Unidade<input name="unit" value="'+esc(x.unit||'')+'" placeholder="caixa, unidade, pacote..."></label><label>Preço unitário orçado<input name="quoted_price" type="number" step="0.01" min="0" value="'+esc(x.quoted_price||'')+'" required></label><label>Data limite<input name="due_date" type="date" value="'+esc(x.due_date||'')+'"></label><label>Status<select name="status"><option value="orcamento">Orçamento</option><option value="aprovado">Aprovado</option><option value="comprado">Comprado</option><option value="cancelado">Cancelado</option></select></label><label class="full">Observações<textarea name="notes" rows="4">'+esc(x.notes||'')+'</textarea></label><div class="full"><button class="btn gold">💾 '+(x.id?'Salvar correções':'Salvar orçamento')+'</button><button class="btn secondary" type="button" onclick="compras()">Cancelar</button></div></form>';
+ const form=document.getElementById('bf'); form.querySelector('[name="category"]').value=x.category||'Outro'; form.querySelector('[name="status"]').value=x.status||'orcamento';
+ form.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const qty=Number(d.quantity),price=Number(d.quoted_price),total=qty*price;const payload={reference_month:x.reference_month||new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-01',category:d.category,item_name:d.item_name.trim(),quantity:qty,unit:d.unit||null,quoted_price:price,total_price:total,split_count:count,per_child_amount:count?total/count:0,due_date:d.due_date||null,status:d.status||'orcamento',notes:d.notes||null};const q=x.id?await sb.from('finance_budget_items').update(payload).eq('id',x.id).select().single():await sb.from('finance_budget_items').insert({...payload,created_by:me.id}).select().single();if(q.error){msg(q.error);return}await audit(x.id?'update_budget_item':'create_budget_item','finance_budget_items',x.id||q.data.id,{item:payload.item_name,total:payload.total_price,status:payload.status});alert(x.id?'Orçamento corrigido com sucesso.':'Orçamento salvo com sucesso.');compras();};
+}
+
 async function gerarCotaOrcamento(id){
  const {data:x}=await sb.from('finance_budget_items').select('*').eq('id',id).single();if(!x)return;
  const count=children.filter(c=>c.active).length;if(!count){alert('Não há filhos ativos para ratear.');return}
