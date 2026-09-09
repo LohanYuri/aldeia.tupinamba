@@ -320,6 +320,12 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
 const today=()=>new Date().toISOString().slice(0,10);
 const monthName=d=>new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+const brDate=d=>d?new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR'):'—';
+const brTime=t=>t?String(t).slice(0,5):'—';
+const normalizeName=n=>String(n||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-zA-Z0-9 ]/g,' ').trim().split(/\\s+/).slice(0,2).join('.');
+const makeUsername=n=>{const x=normalizeName(n).toLowerCase();return x?(x+'@'):'';
+};
+const sharedPasswordKey='aldeia_shared_access_password';
 const msg=e=>alert(e?.message||e||'Operação concluída.');
 async function init(){
  const {data:{session}}=await sb.auth.getSession();
@@ -433,13 +439,83 @@ async function dashboard(){
  portalStats();
 }
 async function escala(){
- const {data:cfgs}=await sb.from('scale_configs').select('id,month_start,title,regular_time,auto_enabled,members_per_team,substitutes').order('month_start',{ascending:false});
- const {data:scales}=await sb.from('scales').select('id,scale_date,weekday,start_time,end_time,status,notes,published_at,scale_type,teams(name)').order('scale_date',{ascending:false}).limit(120);
- view.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h2>📅 Escala automática</h2><p class="lead">O Comandante define os dias do mês e o sistema distribui os filhos ativos. Desativou alguém? A escala futura é redistribuída automaticamente.</p></div><button class="btn gold" onclick="novaConfigEscala()">+ Configurar mês</button></div>'+
- '<div class="notice-box">🕖 Horário padrão: <b>19:00</b>. Sexta-feira: <b>sem horário fixo</b>. Faxinão: <b>sem horário fixo</b>. Reservas de extrema necessidade: <b>Luanny, Yuri, João e Mãe de Santo</b>. Eles ficam fora do sorteio automático.</div>'+
- '<div class="command-grid">'+(cfgs||[]).map(c=>card('🗓️ '+esc(c.title),'<p><b>'+monthName(c.month_start)+'</b></p><p>Horário regular: '+esc((c.regular_time||'19:00').slice(0,5))+' • '+(c.auto_enabled?'Automática':'Manual')+'</p><p>Filhos por equipe: '+esc(c.members_per_team)+'</p><p>Reservas: '+esc((c.substitutes||[]).join(', '))+'</p><div class="row-actions"><button class="btn gold" onclick="gerarEscala(\''+c.id+'\')">Gerar/atualizar</button><button class="btn secondary" onclick="editarConfigEscala(\''+c.id+'\')">Editar</button></div>')).join('')+'</div>'+
- '<h3 style="margin-top:28px">Escalas publicadas / histórico</h3><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Data</th><th>Dia</th><th>Horário</th><th>Filhos</th><th>Portal</th></tr></thead><tbody>'+
- (scales||[]).map(s=>'<tr><td><b>'+esc(s.scale_date)+'</b></td><td>'+esc(s.weekday)+'</td><td>'+esc((s.start_time||'').slice(0,5)||'—')+'</td><td>'+esc(s.notes||'')+'</td><td><span class="pill '+(s.published_at?'success':'warn')+'">'+(s.published_at?'PUBLICADA':'NÃO PUBLICADA')+'</span></td></tr>').join('')+'</tbody></table></div>';
+ const [{data:cfgs},{data:scales},{data:locks}]=await Promise.all([
+  sb.from('scale_configs').select('id,month_start,title,regular_time,auto_enabled,members_per_team,substitutes').order('month_start',{ascending:false}),
+  sb.from('scales').select('id,scale_date,weekday,start_time,end_time,status,notes,published_at,scale_type,team_id,teams(name),scale_assignments(child_id,function_name,children(full_name,active))').order('scale_date',{ascending:false}).limit(160),
+  sb.from('scale_team_locks').select('id,config_id,team_id,active,fixed_until,member_ids').eq('active',true)
+ ]);
+ window.__scaleLocks=locks||[];
+ const configForScale=s=>{
+   const teamName=s.teams?.name||'';
+   return (cfgs||[]).find(c=>c.title===teamName)||null;
+ };
+ const future=(scales||[]).filter(s=>String(s.scale_date)>=today());
+ const past=(scales||[]).filter(s=>String(s.scale_date)<today());
+ const lockFor=c=>c?(locks||[]).find(l=>l.config_id===c.id&&l.active):null;
+ const membersOf=s=>(s.scale_assignments||[]).filter(a=>a.children?.active).map(a=>a.children.full_name).join(', ');
+ const cardConfigs=(cfgs||[]).map(c=>{
+   const lock=lockFor(c);
+   return card('🗓️ '+esc(c.title),
+    '<p><b>'+esc(monthName(c.month_start))+'</b></p>'+
+    '<p>Horário regular: <b>'+brTime(c.regular_time||'19:00')+'</b> • '+(c.auto_enabled?'Automática':'Manual')+'</p>'+
+    '<p>Filhos por equipe: '+esc(c.members_per_team)+'</p>'+
+    '<p>Reservas: '+esc((c.substitutes||[]).join(', '))+'</p>'+
+    '<p>'+(lock?'<span class="pill success">📌 EQUIPE FIXADA • até segunda ordem</span>':'<span class="pill">🔄 Sorteio automático</span>')+'</p>'+
+    '<div class="row-actions"><button class="btn gold" onclick="gerarEscala(\''+c.id+'\')">🔄 Gerar/atualizar</button><button class="btn secondary" onclick="editarConfigEscala(\''+c.id+'\')">✏️ Editar</button>'+
+    (lock?'<button class="btn outline" onclick="desfixarEquipe(\''+c.id+'\')">📌 Desfixar equipe</button>':'')+'</div>');
+ }).join('');
+ const rowHtml=(s,showCheck)=>{
+   const c=configForScale(s),lock=lockFor(c),pastRow=String(s.scale_date)<today(),done=s.status==='realizada';
+   const fixedButton=(!pastRow&&c&&s.team_id&&(s.scale_assignments||[]).length)?
+    (lock?'<button class="btn outline small" onclick="desfixarEquipe(\''+c.id+'\')">📌 Fixa</button>':'<button class="btn secondary small" onclick="fixarEquipeScale(\''+c.id+'\',\''+s.id+'\',\''+s.team_id+'\')">📌 Fixar equipe</button>'):'';
+   const check=showCheck?'<label style="display:inline-flex;gap:6px;align-items:center;white-space:nowrap"><input type="checkbox" '+(done?'checked':'')+' onchange="confirmarEscala(\''+s.id+'\',this.checked)"> '+(done?'Confirmada':'Confirmar realizada')+'</label>':'';
+   return '<tr><td><b>'+brDate(s.scale_date)+'</b></td><td>'+esc(s.weekday||'—')+'</td><td><b>'+brTime(s.start_time)+'</b></td><td>'+esc(membersOf(s)||s.notes||'—')+'</td><td><span class="pill '+(done?'success':'warn')+'">'+(done?'✅ REALIZADA':'⏳ PENDENTE')+'</span></td><td>'+check+' '+fixedButton+'</td></tr>';
+ };
+ view.innerHTML=
+ '<div class="command-dashboard-head"><div><span class="eyebrow">ESCALAS</span><h2>📅 Escalas automáticas</h2><p class="lead">O sistema sorteia as próximas equipes entre os filhos ativos. O Comandante pode confirmar o que já aconteceu e fixar uma equipe produtiva.</p></div>'+
+ '<div class="row-actions"><button class="btn gold" onclick="alinharNovaEscala()">🎲 Alinhar nova escala</button><button class="btn secondary" onclick="novaConfigEscala()">+ Configurar mês</button></div></div>'+
+ '<div class="notice-box">🕖 <b>Horário:</b> o painel mostra sempre <b>dia/mês/ano</b> e horário em <b>HH:MM</b>. <b>Alinhar nova escala</b> usa a configuração mais próxima e gera a próxima programação automaticamente.</div>'+
+ '<div class="command-grid">'+card('📅 Próximas','<div class="command-stat">'+future.length+'</div><p>Escalas futuras programadas.</p>')+
+ card('☑️ Checklist','<div class="command-stat">'+past.length+'</div><p>Escalas passadas aguardando conferência.</p>')+
+ card('📌 Equipes fixas','<div class="command-stat">'+(locks||[]).length+'</div><p>Equipes mantidas até segunda ordem.</p>')+'</div>'+
+ '<h3 style="margin-top:28px">Configurações</h3><div class="command-grid">'+cardConfigs+'</div>'+
+ '<h3 style="margin-top:28px">📋 Próximas escalas</h3><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Data</th><th>Dia</th><th>Horário</th><th>Equipe</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+
+ (future.map(s=>rowHtml(s,false)).join('')||'<tr><td colspan="6">Nenhuma próxima escala. Use “Alinhar nova escala”.</td></tr>')+'</tbody></table></div>'+
+ '<h3 style="margin-top:28px">☑️ Checklist das escalas que já aconteceram</h3><p class="lead">Marque quando a escala foi conferida pelos ADMs. O que ficar pendente continua destacado.</p>'+
+ '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Data</th><th>Dia</th><th>Horário</th><th>Equipe</th><th>Status</th><th>Conferência / Equipe</th></tr></thead><tbody>'+
+ (past.map(s=>rowHtml(s,true)).join('')||'<tr><td colspan="6">Nenhuma escala passada.</td></tr>')+'</tbody></table></div>';
+}
+async function confirmarEscala(id,checked){
+ const {error}=await sb.from('scales').update({status:checked?'realizada':'planejada'}).eq('id',id);
+ if(error){msg(error);escala();return}
+ await audit(checked?'confirm_scale_realized':'unconfirm_scale_realized','scales',id,{confirmed:checked});
+ escala();
+}
+async function alinharNovaEscala(){
+ const {data}=await sb.from('scale_configs').select('id,title,month_start').eq('auto_enabled',true).order('month_start',{ascending:true});
+ const cfg=(data||[]).find(x=>String(x.month_start)>=today().slice(0,7)+'-01')||(data||[])[0];
+ if(!cfg){alert('Não existe configuração de escala. Configure o mês primeiro.');return}
+ if(!confirm('Alinhar nova escala com “'+cfg.title+'”? O sistema vai sortear/redistribuir a próxima programação e respeitar qualquer equipe fixada.'))return;
+ await gerarEscala(cfg.id,false);
+}
+async function fixarEquipeScale(configId,scaleId,teamId){
+ const {data:as,error}=await sb.from('scale_assignments').select('child_id,children(full_name,active)').eq('scale_id',scaleId);
+ if(error){msg(error);return}
+ const members=(as||[]).filter(x=>x.children?.active).map(x=>x.child_id);
+ if(!members.length){alert('Não encontrei membros ativos nessa equipe para fixar.');return}
+ if(!confirm('Fixar esta equipe para as próximas escalas até segunda ordem?\n\n'+(as||[]).filter(x=>x.children?.active).map(x=>x.children.full_name).join(', ')))return;
+ const {error:upError}=await sb.from('scale_team_locks').upsert({config_id:configId,team_id:teamId,member_ids:members,active:true,fixed_until:null,fixed_by:me.id,updated_at:new Date().toISOString()},{onConflict:'config_id'});
+ if(upError){msg(upError);return}
+ await audit('fix_scale_team','scale_team_locks',null,{config_id:configId,team_id:teamId,member_ids:members});
+ await gerarEscala(configId,true);
+}
+async function desfixarEquipe(configId){
+ if(!confirm('Desfixar a equipe? A partir da próxima geração o sistema volta ao sorteio automático.'))return;
+ const {error}=await sb.from('scale_team_locks').update({active:false,updated_at:new Date().toISOString()}).eq('config_id',configId);
+ if(error){msg(error);return}
+ await audit('unfix_scale_team','scale_team_locks',null,{config_id:configId});
+ alert('Equipe desfixada. O próximo alinhamento voltará ao sorteio automático.');
+ escala();
 }
 function novaConfigEscala(){configEscalaForm({})}
 async function editarConfigEscala(id){const {data}=await sb.from('scale_configs').select('*').eq('id',id).single();if(!data){msg('Configuração não encontrada.');return}configEscalaForm(data)}
@@ -564,77 +640,67 @@ async function toggleMembro(id,active){
  await audit(active?'deactivate_child':'reactivate_child','children',id,{name:nome});await loadBase();membros()
 }
 async function logins(){
- const {data,error}=await sb.from('profiles').select('id,full_name,username,role,active,created_at').order('full_name');
+ const [{data,error},{data:settings}]=await Promise.all([
+  sb.from('profiles').select('id,full_name,username,role,active,created_at').order('full_name'),
+  sb.from('commander_access_settings').select('fixed_email').eq('id',1).maybeSingle()
+ ]);
  if(error){msg(error);return}
  users=data||[];
+ window.__fixedAccessEmail=settings?.fixed_email||'';
  const linked=children.filter(c=>c.profile_id);
  const roleLabel=r=>({adm:'ADM operacional',dirigente:'Mãe / Dirigente',filho:'Filho',financeiro:'👑 Comandante Geral'}[r]||r||'—');
  const roleClass=r=>r==='financeiro'?'success':r==='adm'?'warn':'';
  const rows=users.map(u=>{
    const child=children.find(c=>c.profile_id===u.id);
-   return '<tr>'+
-    '<td><b>'+esc(u.username||'—')+'</b><br><span class="mini muted">'+esc(u.email||'')+'</span></td>'+
-    '<td><b>'+esc(u.full_name||'—')+'</b>'+(child?'<br><span class="mini muted">👤 '+esc(child.house_role||'Filho da casa')+'</span>':'')+'</td>'+
-    '<td><span class="pill '+roleClass(u.role)+'">'+esc(roleLabel(u.role))+'</span></td>'+
-    '<td><span class="pill '+(u.active?'success':'warn')+'">'+(u.active?'🟢 ATIVO':'⏸️ BLOQUEADO')+'</span></td>'+
-    '<td><div class="row-actions">'+
-      '<button class="btn secondary small" onclick="editarLogin(\''+u.id+'\')">✏️ Editar</button>'+
-      (child?'<button class="btn outline small" onclick="membros();setTimeout(()=>editarMembro(\''+child.id+'\'),50)">👤 Cadastro</button>':'')+
-      (u.id!==me.id?'<button class="btn secondary small" onclick="excluirLogin(\''+u.id+'\')">🗑️ Excluir</button>':'<span class="pill success">SEU ACESSO</span>')+
-    '</div></td>'+
-   '</tr>';
+   return '<tr><td><b>'+esc(u.username||'—')+'</b></td><td><b>'+esc(u.full_name||'—')+'</b>'+(child?'<br><span class="mini muted">👤 '+esc(child.house_role||'Filho da casa')+'</span>':'')+'</td><td><span class="pill '+roleClass(u.role)+'">'+esc(roleLabel(u.role))+'</span></td><td><span class="pill '+(u.active?'success':'warn')+'">'+(u.active?'🟢 ATIVO':'⏸️ BLOQUEADO')+'</span></td><td><div class="row-actions"><button class="btn secondary small" onclick="editarLogin(\''+u.id+'\')">✏️ Editar</button>'+(child?'<button class="btn outline small" onclick="membros();setTimeout(()=>editarMembro(\''+child.id+'\'),50)">👤 Cadastro</button>':'')+(u.id!==me.id?'<button class="btn secondary small" onclick="excluirLogin(\''+u.id+'\')">🗑️ Excluir</button>':'<span class="pill success">SEU ACESSO</span>')+'</div></td></tr>';
  }).join('');
  view.innerHTML=
- '<div class="command-dashboard-head"><div><span class="eyebrow">SEGURANÇA</span><h2>🔐 Acessos e senhas</h2><p class="lead">Área exclusiva do Comandante Geral para criar, editar, bloquear, redefinir e remover acessos.</p></div><button class="btn gold" onclick="novoLogin()">➕ Novo acesso</button></div>'+
- '<div class="notice-box accountability-critical"><b>👑 Regra de segurança:</b> somente o Comandante Geral pode administrar usuários e senhas. A senha nunca é exibida nem armazenada no portal. Cada alteração é registrada na auditoria.</div>'+
- '<div class="command-grid">'+
-   card('👥 Usuários','<div class="command-stat">'+users.length+'</div><p>Acessos cadastrados no sistema.</p>')+
-   card('🟢 Ativos','<div class="command-stat">'+users.filter(x=>x.active).length+'</div><p>Podem entrar no portal.</p>')+
-   card('⏸️ Bloqueados','<div class="command-stat">'+users.filter(x=>!x.active).length+'</div><p>Sem acesso enquanto bloqueados.</p>')+
-   card('👤 Filhos com login','<div class="command-stat">'+linked.length+'</div><p>Cadastros vinculados a um acesso.</p>')+
- '</div>'+
- '<div class="notice-box"><b>Como funciona:</b> o Comandante cria o acesso aqui. Para um filho da casa, o login pode ser vinculado ao cadastro dele. Bloquear o login impede a entrada sem apagar o cadastro ou o histórico.</div>'+
- '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Usuário / e-mail</th><th>Nome / vínculo</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+
- (rows||'<tr><td colspan="5">Nenhum acesso cadastrado.</td></tr>')+
- '</tbody></table></div>';
+ '<div class="command-dashboard-head"><div><span class="eyebrow">SEGURANÇA</span><h2>🔐 Acessos e senhas</h2><p class="lead">O Comandante cria os acessos de ADMs e filhos. O médium não precisa fornecer e-mail próprio.</p></div><button class="btn gold" onclick="novoLogin()">➕ Novo acesso</button></div>'+
+ '<div class="command-card" style="margin-bottom:14px"><h3>📨 E-mail fixo do terreiro</h3><p class="mini muted">O sistema usa este endereço como caixa institucional. Para cada acesso, cria internamente um alias único; o Comandante não precisa pedir o e-mail do médium.</p><form id="emailSettings" class="command-form"><label class="full">E-mail fixo<input name="fixed_email" type="email" required value="'+esc(window.__fixedAccessEmail)+'" placeholder="email.oficial@..."></label><div class="full"><button class="btn gold">💾 Salvar e-mail fixo</button></div></form></div>'+
+ '<div class="notice-box accountability-critical"><b>🔐 Regra:</b> a senha usada no cadastro de ADM e de filho vem do mesmo campo. Se “usar senha padrão” estiver ativo, o painel reaproveita a mesma senha para os próximos acessos desta sessão.</div>'+
+ '<div class="command-grid">'+card('👥 Usuários','<div class="command-stat">'+users.length+'</div><p>Acessos cadastrados.</p>')+card('🟢 Ativos','<div class="command-stat">'+users.filter(x=>x.active).length+'</div><p>Podem entrar.</p>')+card('👤 Filhos com login','<div class="command-stat">'+linked.length+'</div><p>Cadastros vinculados.</p>')+'</div>'+
+ '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Usuário</th><th>Nome / vínculo</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+ (rows||'<tr><td colspan="5">Nenhum acesso cadastrado.</td></tr>')+'</tbody></table></div>';
+ document.getElementById('emailSettings').onsubmit=async e=>{
+   e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const {error}=await sb.from('commander_access_settings').upsert({id:1,fixed_email:d.fixed_email.trim().toLowerCase(),updated_at:new Date().toISOString(),updated_by:me.id},{onConflict:'id'});if(error){msg(error);return}window.__fixedAccessEmail=d.fixed_email.trim().toLowerCase();await audit('update_fixed_access_email','commander_access_settings',null,{configured:true});alert('E-mail fixo do terreiro salvo.');logins();
+ };
 }
 function novoLogin(){loginForm({})}
 function editarLogin(id){loginForm(users.find(x=>x.id===id)||{})}
 function gerarSenhaSegura(){
  const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
  let out='';for(let i=0;i<12;i++)out+=chars[Math.floor(Math.random()*chars.length)];
- const input=document.querySelector('#lf input[name="password"]');if(input){input.value=out;input.type='text';input.focus();input.select()}
+ const input=document.querySelector('#lf input[name="password"]');if(input){input.value=out;input.type='text';input.focus();input.select();sessionStorage.setItem(sharedPasswordKey,out)}
 }
+function sugerirUsuario(){const n=document.querySelector('#lf input[name="full_name"]')?.value||'';const i=document.querySelector('#lf input[name="username"]');if(i&&!i.dataset.manual)i.value=makeUsername(n)}
 function loginForm(u){
  const child=children.find(c=>c.profile_id===u.id);
- const roleOptions=[
-  ['adm','ADM operacional'],['dirigente','Mãe / Dirigente'],['filho','Filho']
- ].map(([v,l])=>'<option value="'+v+'" '+(u.role===v?'selected':'')+'>'+l+'</option>').join('');
- view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">CONTROLE DE ACESSO</span><h2>🔐 '+(u.id?'Editar acesso':'Criar acesso')+'</h2><p class="lead">'+(u.id?'Altere somente o que for necessário. Deixe a senha vazia para mantê-la.':'Crie o usuário e, se for um filho, vincule ao cadastro existente.')+'</p></div><button class="btn secondary" onclick="logins()">← Voltar</button></div>'+
- '<div class="notice-box accountability-critical">🔒 <b>Senha segura:</b> nunca mostramos a senha atual. Ao redefinir, informe uma nova senha e entregue-a ao usuário por um canal seguro.</div>'+
- '<form id="lf" class="command-form">'+
- '<label>Nome completo<input name="full_name" value="'+esc(u.full_name||'')+'" required></label>'+
- '<label>Usuário<input name="username" value="'+esc(u.username||'')+'" required></label>'+
- '<label>E-mail<input name="email" type="email" value="'+esc(u.email||'')+'" '+(u.id?'':'required')+'></label>'+
- '<label>Perfil<select name="role" '+(u.id===me.id?'disabled':'')+'>'+roleOptions+'</select>'+(u.id===me.id?'<small class="muted">O Comandante atual não pode perder o próprio nível de acesso.</small>':'')+'</label>'+
- '<label class="full">Vincular ao filho da casa<select name="child_id"><option value="">— Nenhum —</option>'+children.filter(c=>c.active||c.profile_id===u.id).map(c=>'<option value="'+c.id+'" '+(c.profile_id===u.id?'selected':'')+'>'+esc(c.full_name)+' — '+esc(c.house_role||'Filho da casa')+'</option>').join('')+'</select><small class="muted">O vínculo conecta este login ao cadastro do filho sem misturar senha com dados pessoais.</small></label>'+
- '<label>Nova senha<input name="password" type="password" minlength="8" placeholder="'+(u.id?'Deixe vazio para manter a senha':'Mínimo de 8 caracteres')+'"></label>'+
+ const roleOptions=[['adm','ADM operacional'],['dirigente','Mãe / Dirigente'],['filho','Filho']].map(([v,l])=>'<option value="'+v+'" '+(u.role===v?'selected':'')+'>'+l+'</option>').join('');
+ const isNew=!u.id;
+ const defaultPwd=isNew?(sessionStorage.getItem(sharedPasswordKey)||''):'';
+ view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">CONTROLE DE ACESSO</span><h2>🔐 '+(u.id?'Editar acesso':'Criar acesso')+'</h2><p class="lead">O login é gerado pelo Comandante. Não é necessário o e-mail pessoal do médium.</p></div><button class="btn secondary" onclick="logins()">← Voltar</button></div>'+
+ '<div class="notice-box">📨 <b>E-mail:</b> o sistema usará o e-mail fixo do terreiro configurado na tela anterior e criará um alias interno único para cada acesso.</div>'+
+ '<form id="lf" class="command-form"><label>Nome completo<input name="full_name" value="'+esc(u.full_name||child?.full_name||'')+'" required></label>'+
+ '<label>Usuário<input name="username" value="'+esc(u.username||makeUsername(u.full_name||child?.full_name||''))+'" required><small class="muted">Formato automático: primeiro e segundo nome + “@”.</small></label>'+
+ '<label>Perfil<select name="role" '+(u.id===me.id?'disabled':'')+'>'+roleOptions+'</select></label>'+
+ '<label>Nova senha<input name="password" type="password" minlength="8" value="'+esc(defaultPwd)+'" placeholder="'+(u.id?'Deixe vazio para manter a senha':'Digite a senha padrão para este acesso')+'"></label>'+
  '<div style="display:flex;align-items:end;gap:8px"><button type="button" class="btn outline" onclick="gerarSenhaSegura()">🎲 Gerar senha</button></div>'+
+ '<label><input type="checkbox" name="shared" '+(isNew?'checked':'')+'> Usar esta mesma senha como padrão para próximos acessos</label>'+
  '<label><input type="checkbox" name="active" '+(u.active!==false?'checked':'')+'> Acesso ativo</label>'+
- '<div class="full"><button class="btn gold">💾 Salvar acesso</button> <button type="button" class="btn secondary" onclick="logins()">Cancelar</button></div>'+
- '</form>';
+ '<div class="full"><button class="btn gold">💾 Salvar acesso</button> <button type="button" class="btn secondary" onclick="logins()">Cancelar</button></div></form>';
  const lf=document.getElementById('lf');
+ const full=lf.querySelector('[name="full_name"]'),un=lf.querySelector('[name="username"]'),pw=lf.querySelector('[name="password"]');
+ un.addEventListener('input',()=>un.dataset.manual='1');
+ full.addEventListener('input',()=>{if(!un.dataset.manual)sugerirUsuario()});
  lf.onsubmit=async e=>{
-   e.preventDefault();
-   const d=Object.fromEntries(new FormData(e.target));
+   e.preventDefault();const d=Object.fromEntries(new FormData(e.target));
+   if(isNew&&!d.password){alert('Informe uma senha ou use “Gerar senha”.');return}
+   if(isNew&&d.shared)d.password&&(sessionStorage.setItem(sharedPasswordKey,d.password));
    const role=u.id===me.id?'financeiro':d.role;
-   const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username,email:d.email,password:d.password,role,active:d.active==='on',child_id:d.child_id||null};
+   const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username, password:d.password,role,active:d.active==='on',child_id:child?.id||null};
    const {data,error}=await sb.functions.invoke('admin-users',{body:payload});
    if(error||data?.error){msg(data?.error||error);return}
-   await audit(u.id?'update_login':'create_login','profiles',u.id||data?.id,{username:d.username,role,active:d.active==='on',child_id:d.child_id||null,password_changed:Boolean(d.password)});
-   await loadBase();
-   alert(u.id?'Acesso atualizado com sucesso.':'Acesso criado com sucesso. Entregue a senha ao usuário por um canal seguro.');
-   logins();
+   await audit(u.id?'update_login':'create_login','profiles',u.id||data?.id,{username:d.username,role,active:d.active==='on',password_changed:Boolean(d.password)});
+   await loadBase();alert(u.id?'Acesso atualizado com sucesso.':'Acesso criado com sucesso.');logins();
  };
 }
 async function excluirLogin(id){
@@ -939,7 +1005,7 @@ async function relatorios(){
   sb.from('disciplinary_actions').select('action_type,warning_number,notes,created_at,children(full_name,active)').order('created_at',{ascending:false}).limit(200)
  ]);
  const activeRows=(cd||[]).filter(x=>x.children?.active);const paid=activeRows.filter(x=>x.status==='pago');const pending=activeRows.filter(x=>x.status!=='pago');const total=activeRows.reduce((s,x)=>s+Number(x.dues?.amount||0),0),pt=paid.reduce((s,x)=>s+Number(x.dues?.amount||0),0);
- const text='📊 RELATÓRIO MENSAL — ALDEIA TUPINAMBÁ\\nReferência: '+monthName(ref)+'\\n\\n👥 FILHOS ATIVOS: '+children.filter(c=>c.active).length+'\\n💰 TOTAL PREVISTO: '+money(total)+'\\n✅ PAGOS: '+paid.length+' — '+money(pt)+'\\n⏳ FALTAM: '+pending.length+' — '+money(total-pt)+'\\n\\n📋 SITUAÇÃO INDIVIDUAL\\n'+activeRows.map(x=>(x.status==='pago'?'✅ ':'❌ ')+(x.children?.full_name||'')+' — '+(x.dues?.title||'')+' — '+money(x.dues?.amount)).join('\\n')+'\\n\\n📅 ESCALA\\n'+(scales||[]).map(s=>'• '+s.scale_date+' '+s.weekday+' '+((s.start_time||'').slice(0,5)||'sem horário')+' — '+((s.scale_assignments||[]).filter(a=>a.children?.active).map(a=>a.children.full_name).join(', ')||'sem nomes')).join('\\n')+'\\n\\n🚨 AVISOS ADM\\n'+(adminNotices||[]).slice(0,8).map(n=>'• '+n.title+' — '+(n.event_date||'')).join('\\n')+'\\n\\n⚖️ PENDÊNCIAS/OCORRÊNCIAS\\n'+(compliance||[]).filter(x=>x.children?.active).slice(0,20).map(x=>'• '+x.children.full_name+' — '+x.category+' — '+x.status+' — '+x.description).join('\\n')+
+ const text='📊 RELATÓRIO MENSAL — ALDEIA TUPINAMBÁ\\nReferência: '+monthName(ref)+'\\n\\n👥 FILHOS ATIVOS: '+children.filter(c=>c.active).length+'\\n💰 TOTAL PREVISTO: '+money(total)+'\\n✅ PAGOS: '+paid.length+' — '+money(pt)+'\\n⏳ FALTAM: '+pending.length+' — '+money(total-pt)+'\\n\\n📋 SITUAÇÃO INDIVIDUAL\\n'+activeRows.map(x=>(x.status==='pago'?'✅ ':'❌ ')+(x.children?.full_name||'')+' — '+(x.dues?.title||'')+' — '+money(x.dues?.amount)).join('\\n')+'\\n\\n📅 ESCALA\\n'+(scales||[]).map(s=>'• '+brDate(s.scale_date)+' '+s.weekday+' '+(brTime(s.start_time)||'sem horário')+' — '+((s.scale_assignments||[]).filter(a=>a.children?.active).map(a=>a.children.full_name).join(', ')||'sem nomes')).join('\\n')+'\\n\\n🚨 AVISOS ADM\\n'+(adminNotices||[]).slice(0,8).map(n=>'• '+n.title+' — '+(n.event_date||'')).join('\\n')+'\\n\\n⚖️ PENDÊNCIAS/OCORRÊNCIAS\\n'+(compliance||[]).filter(x=>x.children?.active).slice(0,20).map(x=>'• '+x.children.full_name+' — '+x.category+' — '+x.status+' — '+x.description).join('\\n')+
  '\\n\\n📌 DISCIPLINAR\\n'+(disciplinary||[]).filter(x=>x.children?.active).slice(0,30).map(x=>'• '+x.children.full_name+' — '+x.action_type+(x.warning_number?' nº '+x.warning_number:'')+' — '+(x.notes||'')).join('\\n');
  view.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><h2>📊 Relatório mensal</h2><p class="lead">Resumo para a Mãe de Santo e para o grupo administrativo.</p></div><div class="row-actions"><button class="btn gold" onclick="openWhats(window.__monthlyText)">📲 Abrir WhatsApp</button><button class="btn outline" onclick="copyMonthly()">📋 Copiar relatório</button></div></div>'+
  '<div class="command-grid">'+card('💰 Previsto','<div class="money">'+money(total)+'</div>')+card('✅ Recebido','<div class="money">'+money(pt)+'</div>')+card('⏳ Falta receber','<div class="money">'+money(total-pt)+'</div>')+card('👥 Ativos','<div class="command-stat">'+children.filter(c=>c.active).length+'</div>')+'</div>'+
