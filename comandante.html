@@ -1395,4 +1395,309 @@ function showSystemDialog({title='Atenção',message='',detail='',icon='⚠️',
     modal.hidden=false; (box.querySelector('button'))?.focus();
   });
 }
-</script></body></html>
+</script>
+<!-- EVENT_FINANCE_V2 -->
+<style>
+.event-finance-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:14px 0}
+.event-finance-box{background:#171919;border:1px solid #66501f;border-radius:14px;padding:14px}
+.event-finance-box b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#d7b765;margin-bottom:5px}
+.event-finance-box strong{font-size:25px;color:#fff}
+.event-finance-status{padding:15px;border-radius:14px;margin:12px 0;border:1px solid #66501f;background:#211b12}
+.event-finance-status.ok{border-color:#2e9d67;background:#103d2a}
+.event-finance-status.warn{border-color:#c99a24;background:#302612}
+.event-finance-status.bad{border-color:#c75a5a;background:#3b1717}
+.event-finance-flow{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.event-finance-flow span{padding:6px 9px;border-radius:999px;background:#2a261d;border:1px solid #5e4915;font-size:12px;font-weight:900}
+.event-finance-flow span.on{background:#c9951e;color:#15110a;border-color:#f0d38a}
+.event-finance-recommend{background:#241e10;border:1px solid #c99a24;border-radius:14px;padding:14px;margin-top:12px}
+.event-finance-table td,.event-finance-table th{white-space:nowrap}
+@media(max-width:760px){.event-finance-table{font-size:12px}.event-finance-box strong{font-size:21px}}
+</style>
+<script>
+(function(){
+  const STATUS_LABELS={a_orcar:'A ORÇAR',orcado:'ORÇADO',comprar:'COMPRAR',comprado:'COMPRADO'};
+  const STATUS_CLASS={a_orcar:'warn',orcado:'',comprar:'warn',comprado:'success'};
+  const normalizeStatus=s=>{
+    if(s==='orcamento')return 'orcado';
+    if(s==='aprovado')return 'comprar';
+    if(s==='cota_gerada')return 'comprar';
+    if(STATUS_LABELS[s])return s;
+    return 'a_orcar';
+  };
+  const efMoney=n=>money(Number(n||0));
+  const safeNum=n=>Number.isFinite(Number(n))?Number(n):0;
+  const todayISO=()=>new Date().toISOString().slice(0,10);
+  const monthRef=()=>todayISO().slice(0,7)+'-01';
+  const eventLabel=e=>esc(e.title)+(e.event_date?' • '+dateBR(e.event_date):'');
+
+  async function efLoadEvents(){
+    const q=await sb.from('events').select('id,title,event_date,description').order('event_date',{ascending:false});
+    if(q.error)throw q.error;
+    return q.data||[];
+  }
+
+  async function efLoadItems(){
+    const q=await sb.from('finance_budget_items').select('*').order('created_at',{ascending:false});
+    if(q.error)throw q.error;
+    return q.data||[];
+  }
+
+  async function compras(){
+    try{
+      const [rows,events]=await Promise.all([efLoadItems(),efLoadEvents()]);
+      window.__budgetItems=rows;
+      const normalized=rows.map(x=>({...x,status:normalizeStatus(x.status)}));
+      const counts={a_orcar:0,orcado:0,comprar:0,comprado:0};
+      normalized.forEach(x=>counts[x.status]=(counts[x.status]||0)+1);
+      const quoted=normalized.reduce((s,x)=>s+safeNum(x.total_price||safeNum(x.quantity)*safeNum(x.quoted_price)),0);
+      const actual=normalized.reduce((s,x)=>s+safeNum(x.actual_total_price),0);
+      const eventOptions='<option value="">Sem festa/evento</option>'+events.map(e=>'<option value="'+esc(e.id)+'">'+eventLabel(e)+'</option>').join('');
+      view.innerHTML=
+        '<div class="command-dashboard-head"><div><span class="eyebrow">FINANCEIRO • COMPRAS</span><h2>🛒 Compras, Orçamentos e Gastos Reais</h2><p class="lead">Cada item segue obrigatoriamente: <b>A ORÇAR → ORÇADO → COMPRAR → COMPRADO</b>. O valor realmente pago entra no relatório financeiro.</p></div>'+
+        '<div class="row-actions"><button class="btn gold" onclick="novaCompra()">➕ Adicionar item</button><button class="btn secondary" onclick="festasChecklist()">🎉 Checklists</button><button class="btn outline" onclick="festaFinanceiro()">📊 Fechamento das festas</button></div></div>'+
+        '<div class="command-grid">'+
+          card('🟡 A ORÇAR','<div class="command-stat">'+counts.a_orcar+'</div><p>Ainda precisa pesquisar preço.</p>')+
+          card('🔵 ORÇADO','<div class="command-stat">'+counts.orcado+'</div><p>Já possui cotação/preço.</p>')+
+          card('🛒 COMPRAR','<div class="command-stat">'+counts.comprar+'</div><p>Compra definida, aguardando registro.</p>')+
+          card('🟢 COMPRADO','<div class="command-stat">'+counts.comprado+'</div><p>Compra confirmada.</p>')+
+          card('📋 Total orçado', '<div class="money">'+efMoney(quoted)+'</div><p>Planejamento atual.</p>')+
+          card('💳 Total realmente pago','<div class="money">'+efMoney(actual)+'</div><p>Somente compras registradas.</p>')+
+        '</div>'+
+        '<div class="whatsapp"><b>📲 Lista pronta para WhatsApp</b><p>O checklist continua disponível sem perder o controle financeiro.</p><button class="btn gold" onclick="whatsCompras()">Abrir WhatsApp com checklist</button></div>'+
+        '<div class="command-card"><h3>🧾 Lista de compras</h3><div class="command-table-wrap"><table class="command-table event-finance-table"><thead><tr><th>Item</th><th>Festa</th><th>Qtd.</th><th>Orçado</th><th>Pago</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+
+        (normalized.length?normalized.map(x=>{
+          const st=normalizeStatus(x.status),eventName=events.find(e=>e.id===x.event_id)?.title||x.fund_niche||'—';
+          const planned=safeNum(x.total_price||safeNum(x.quantity)*safeNum(x.quoted_price));
+          const paid=safeNum(x.actual_total_price);
+          let action='';
+          if(st==='a_orcar')action='<button class="btn secondary small" onclick="editarCompra(\''+x.id+'\')">🔎 Orçar</button>';
+          else if(st==='orcado')action='<button class="btn gold small" onclick="editarCompra(\''+x.id+'\')">🛒 Preparar compra</button>';
+          else if(st==='comprar')action='<button class="btn gold small" onclick="registrarCompra(\''+x.id+'\')">🛍️ Registrar compra</button>';
+          else action='<button class="btn secondary small" onclick="registrarCompra(\''+x.id+'\')">✏️ Ver/alterar compra</button>';
+          return '<tr><td><b>'+esc(x.item_name)+'</b><br><span class="mini">'+esc(x.category||'')+'</span></td><td>'+esc(eventName)+'</td><td>'+esc(x.quantity)+' '+esc(x.unit||'')+'</td><td>'+efMoney(planned)+'</td><td>'+(paid?efMoney(paid):'—')+'</td><td><span class="pill '+(STATUS_CLASS[st]||'')+'">'+STATUS_LABELS[st]+'</span></td><td><div class="row-actions">'+action+'<button class="btn outline small" onclick="abrirComparador(\''+x.id+'\')">🔎 Comparar</button></div></td></tr>';
+        }).join(''):'<tr><td colspan="7">Nenhum item cadastrado.</td></tr>')+
+        '</tbody></table></div></div>'+
+        '<div class="notice-box"><b>💡 Regra financeira:</b> o valor <b>ORÇADO</b> nunca substitui o valor <b>REALMENTE PAGO</b>. O relatório usa o valor pago para dizer quanto a festa realmente custou.</div>';
+    }catch(e){msg(e)}
+  }
+
+  function novaCompra(){formCompra({})}
+  function editarCompra(id){formCompra((window.__budgetItems||[]).find(x=>x.id===id)||{})}
+
+  async function formCompra(x){
+    let events=[];
+    try{events=await efLoadEvents()}catch(e){msg(e);return}
+    const count=children.filter(c=>c.active).length;
+    const st=normalizeStatus(x.status);
+    view.innerHTML=
+      '<div class="command-dashboard-head"><div><span class="eyebrow">CONTROLE DE COMPRA</span><h2>🛒 '+(x.id?'Editar item':'Novo item')+'</h2><p class="lead">Avance o item pelo fluxo <b>A ORÇAR → ORÇADO → COMPRAR → COMPRADO</b>.</p></div><button class="btn secondary" onclick="compras()">← Voltar</button></div>'+
+      '<div class="event-finance-flow"><span class="'+(st==='a_orcar'?'on':'')+'">1 • A ORÇAR</span><span class="'+(st==='orcado'?'on':'')+'">2 • ORÇADO</span><span class="'+(st==='comprar'?'on':'')+'">3 • COMPRAR</span><span class="'+(st==='comprado'?'on':'')+'">4 • COMPRADO</span></div>'+
+      '<form id="bf2" class="command-form">'+
+      '<label>Etapa<select name="status"><option value="a_orcar">A ORÇAR</option><option value="orcado">ORÇADO</option><option value="comprar">COMPRAR</option><option value="comprado">COMPRADO</option></select></label>'+
+      '<label>Festa / evento<select name="event_id">'+('<option value="">Sem festa/evento</option>'+events.map(e=>'<option value="'+esc(e.id)+'">'+eventLabel(e)+'</option>').join(''))+'</select></label>'+
+      '<label>Finalidade<select name="fund_niche">'+FUND_NICHES.map(n=>'<option>'+esc(n)+'</option>').join('')+'</select></label>'+
+      '<label>Categoria<select name="category"><option>Alimentos</option><option>Bebidas</option><option>Velas</option><option>Fumo</option><option>Charuto</option><option>Limpeza</option><option>Material religioso</option><option>Outro</option></select></label>'+
+      '<label>Produto/item<input name="item_name" required value="'+esc(x.item_name||'')+'" placeholder="Ex.: Vela 24 horas"></label>'+
+      '<label>Quantidade necessária<input name="quantity" type="number" min="0.01" step="0.01" value="'+esc(x.quantity||1)+'" required></label>'+
+      '<label>Unidade<input name="unit" value="'+esc(x.unit||'')+'" placeholder="unidade, pacote, caixa..."></label>'+
+      '<label>Preço unitário orçado<input name="quoted_price" type="number" step="0.01" min="0" value="'+esc(x.quoted_price||'')+'" required></label>'+
+      '<label>Mercado/loja do orçamento<input name="market_name" value="'+esc(x.market_name||'')+'" placeholder="Onde encontrou o melhor preço"></label>'+
+      '<label>Data limite<input name="due_date" type="date" value="'+esc(x.due_date||'')+'"></label>'+
+      '<label class="full">Observações<textarea name="notes" rows="3">'+esc(x.notes||'')+'</textarea></label>'+
+      '<div class="full notice-box"><b>💳 Valor real:</b> depois da compra use <b>Registrar compra</b> para informar exatamente quanto foi pago. Esse valor alimenta o relatório da festa.</div>'+
+      '<div class="full compare-links"><b>🌐 Pesquisar online:</b> <button type="button" class="btn secondary small" onclick="buscarProdutoOnline()">Mercado Livre</button> <button type="button" class="btn secondary small" onclick="buscarProdutoOnline(&quot;shopee&quot;)">Shopee</button> <button type="button" class="btn secondary small" onclick="buscarProdutoOnline(&quot;google&quot;)">Google</button></div>'+
+      '<div class="full"><button class="btn gold">💾 Salvar etapa</button> <button type="button" class="btn secondary" onclick="compras()">Cancelar</button></div></form>';
+    const f=document.getElementById('bf2');
+    f.querySelector('[name=status]').value=st;
+    f.querySelector('[name=fund_niche]').value=x.fund_niche||FUND_NICHES[0];
+    f.querySelector('[name=category]').value=x.category||'Outro';
+    f.querySelector('[name=event_id]').value=x.event_id||'';
+    f.onsubmit=async e=>{
+      e.preventDefault();
+      const d=Object.fromEntries(new FormData(e.target)),qty=safeNum(d.quantity),price=safeNum(d.quoted_price),total=qty*price;
+      const payload={reference_month:x.reference_month||monthRef(),category:d.category,item_name:d.item_name.trim(),quantity:qty,unit:d.unit||null,quoted_price:price,total_price:total,split_count:count,per_child_amount:count?total/count:0,due_date:d.due_date||null,status:d.status,fund_niche:d.fund_niche,event_id:d.event_id||null,market_name:d.market_name||null,notes:d.notes||null,updated_at:new Date().toISOString()};
+      const q=x.id?await sb.from('finance_budget_items').update(payload).eq('id',x.id).select().single():await sb.from('finance_budget_items').insert({...payload,created_by:me.id}).select().single();
+      if(q.error){msg(q.error);return}
+      await audit(x.id?'update_budget_item':'create_budget_item','finance_budget_items',x.id||q.data.id,payload);
+      compras();
+    };
+  }
+
+  async function registrarCompra(id){
+    const x=(window.__budgetItems||[]).find(i=>i.id===id);
+    if(!x){alert('Item não encontrado.');return}
+    const qty=safeNum(x.quantity);
+    view.innerHTML=
+      '<div class="command-dashboard-head"><div><span class="eyebrow">COMPRA REALIZADA</span><h2>🛍️ Registrar quanto foi pago</h2><p class="lead">Aqui entra o valor que realmente saiu do dinheiro da Aldeia — não o orçamento.</p></div><button class="btn secondary" onclick="compras()">← Voltar</button></div>'+
+      '<div class="event-finance-flow"><span>1 • A ORÇAR</span><span>2 • ORÇADO</span><span class="on">3 • COMPRAR</span><span>4 • COMPRADO</span></div>'+
+      '<div class="command-card"><h3>🧾 '+esc(x.item_name)+'</h3><p>Quantidade: <b>'+qty+' '+esc(x.unit||'')+'</b> • Orçamento: <b>'+efMoney(x.total_price||qty*x.quoted_price)+'</b></p>'+
+      '<form id="purchaseForm" class="command-form">'+
+      '<label>Valor REAL pago por unidade<input name="actual_unit_price" type="number" step="0.01" min="0" value="'+esc(x.actual_unit_price||x.quoted_price||0)+'" required></label>'+
+      '<label>Valor REAL total pago<input name="actual_total_price" type="number" step="0.01" min="0" value="'+esc(x.actual_total_price||0)+'" required></label>'+
+      '<label>Onde comprou<input name="purchase_place" value="'+esc(x.purchase_place||x.market_name||'')+'" placeholder="Mercado, loja, Shopee..."></label>'+
+      '<label>Data da compra<input name="purchase_date" type="date" value="'+esc(x.purchase_date||todayISO())+'" required></label>'+
+      '<label>Forma/origem do pagamento<select name="payment_source"><option value="cota">Cota da festa</option><option value="caixa_aldeia">Caixa da Aldeia</option><option value="dinheiro_proprio">Dinheiro próprio</option><option value="doacao_extra">Doação extra</option><option value="outro">Outra fonte</option></select></label>'+
+      '<label class="full">Observações da compra<textarea name="purchase_notes" rows="3" placeholder="Ex.: preço aumentou; frete; desconto; compramos 2 a mais...">'+esc(x.purchase_notes||'')+'</textarea></label>'+
+      '<div class="full"><button class="btn gold">✅ Confirmar COMPRADO</button><button type="button" class="btn secondary" onclick="compras()">Cancelar</button></div></form></div>';
+    const f=document.getElementById('purchaseForm');
+    f.querySelector('[name=payment_source]').value=x.payment_source||'cota';
+    f.onsubmit=async e=>{
+      e.preventDefault();
+      const d=Object.fromEntries(new FormData(e.target));
+      const actual=safeNum(d.actual_total_price), unit=safeNum(d.actual_unit_price);
+      if(actual<=0){alert('Informe quanto realmente foi pago.');return}
+      const payload={status:'comprado',actual_unit_price:unit,actual_total_price:actual,purchase_place:d.purchase_place||null,purchase_date:d.purchase_date||todayISO(),payment_source:d.payment_source||null,purchase_notes:d.purchase_notes||null,updated_at:new Date().toISOString()};
+      const q=await sb.from('finance_budget_items').update(payload).eq('id',id).select().single();
+      if(q.error){msg(q.error);return}
+      await audit('register_real_purchase','finance_budget_items',id,payload);
+      compras();
+    };
+  }
+
+  async function festaFinanceiro(){
+    try{
+      const events=await efLoadEvents();
+      view.innerHTML=
+        '<div class="command-dashboard-head"><div><span class="eyebrow">FINANCEIRO • FESTAS</span><h2>📊 Fechamento financeiro das festas</h2><p class="lead">Veja quanto realmente foi gasto, quanto entrou pelas cotas, se a arrecadação deu conta e de onde saiu qualquer complemento.</p></div><button class="btn secondary" onclick="compras()">← Compras</button></div>'+
+        '<div class="command-grid">'+card('🎉 Festas cadastradas','<div class="command-stat">'+events.length+'</div><p>Eventos disponíveis para fechamento.</p>')+card('🧠 Histórico','<p>O sistema usa os fechamentos anteriores para estimar a próxima cota.</p>')+'</div>'+
+        '<div class="command-card"><h3>Escolha a festa</h3><div class="command-grid">'+(events.length?events.map(e=>'<button class="btn gold" onclick="abrirFestaFinanceiro(\''+e.id+'\')">🎉 '+eventLabel(e)+'</button>').join(''):'<p class="muted">Nenhuma festa cadastrada.</p>')+'</div></div>';
+    }catch(e){msg(e)}
+  }
+
+  async function abrirFestaFinanceiro(eventId){
+    try{
+      const [er,fr,cr,ir]=await Promise.all([
+        sb.from('events').select('*').eq('id',eventId).single(),
+        sb.from('event_financials').select('*').eq('event_id',eventId).maybeSingle(),
+        sb.from('event_financial_complements').select('*').eq('event_id',eventId).order('created_at',{ascending:false}),
+        sb.from('finance_budget_items').select('*').eq('event_id',eventId).order('created_at')
+      ]);
+      if(er.error)throw er.error;
+      const e=er.data, f=fr.data||{quota_value:0,quota_count:0,collected_total:0,notes:''}, comps=cr.data||[], items=ir.data||[];
+      const planned=items.reduce((s,x)=>s+safeNum(x.total_price||safeNum(x.quantity)*safeNum(x.quoted_price)),0);
+      const spent=items.reduce((s,x)=>s+safeNum(x.actual_total_price),0);
+      const effectiveSpent=spent>0?spent:planned;
+      const extra=comps.filter(x=>x.source_type==='doacao_extra').reduce((s,x)=>s+safeNum(x.amount),0);
+      const complements=comps.filter(x=>x.source_type!=='doacao_extra').reduce((s,x)=>s+safeNum(x.amount),0);
+      const baseRaised=safeNum(f.collected_total)+extra;
+      const quotaTarget=safeNum(f.quota_value)*safeNum(f.quota_count);
+      const balanceBeforeComplement=baseRaised-effectiveSpent;
+      const needComplement=Math.max(0,effectiveSpent-baseRaised);
+      const coverage=effectiveSpent?Math.min(999,baseRaised/effectiveSpent*100):0;
+      const status=balanceBeforeComplement>=0?(coverage>=90?'warn':'ok'):'bad';
+      const statusText=balanceBeforeComplement>0?'🟢 COTA SUFICIENTE — sobrou '+efMoney(balanceBeforeComplement):balanceBeforeComplement===0?'🟡 COTA EXATA — fechou no limite':'🔴 COTA INSUFICIENTE — faltam '+efMoney(needComplement);
+      const recommendation=await efQuotaRecommendation(eventId);
+      view.innerHTML=
+        '<div class="command-dashboard-head"><div><span class="eyebrow">FECHAMENTO • '+esc(e.title)+'</span><h2>📊 '+esc(e.title)+'</h2><p class="lead">'+(e.event_date?'📅 '+dateBR(e.event_date):'')+' • Controle do custo real da festa.</p></div><div class="row-actions"><button class="btn secondary" onclick="festaFinanceiro()">← Festas</button><button class="btn outline" onclick="gerarRelatorioFesta(\''+eventId+'\')">📄 Gerar relatório</button></div></div>'+
+        '<div class="event-finance-summary">'+
+          '<div class="event-finance-box"><b>💰 Total realmente gasto</b><strong>'+efMoney(effectiveSpent)+'</strong></div>'+
+          '<div class="event-finance-box"><b>🧾 Total orçado</b><strong>'+efMoney(planned)+'</strong></div>'+
+          '<div class="event-finance-box"><b>🎟️ Cotas arrecadadas</b><strong>'+efMoney(f.collected_total)+'</strong></div>'+
+          '<div class="event-finance-box"><b>🎁 Doações extras</b><strong>'+efMoney(extra)+'</strong></div>'+
+          '<div class="event-finance-box"><b>⚠️ Complementos</b><strong>'+efMoney(complements)+'</strong></div>'+
+          '<div class="event-finance-box"><b>📌 Meta das cotas</b><strong>'+efMoney(quotaTarget)+'</strong></div>'+
+        '</div>'+
+        '<div class="event-finance-status '+status+'"><b>'+statusText+'</b><br><span class="mini">Cobertura da arrecadação: '+coverage.toFixed(0)+'% • Necessidade de complemento antes dos complementos: '+efMoney(needComplement)+'</span></div>'+
+        '<div class="command-card"><h3>🎟️ Dados das cotas e arrecadação</h3><form id="eventFinanceForm" class="command-form"><label>Valor de cada cota<input name="quota_value" type="number" step="0.01" min="0" value="'+safeNum(f.quota_value)+'"></label><label>Quantidade de cotas/pessoas<input name="quota_count" type="number" step="1" min="0" value="'+safeNum(f.quota_count)+'"></label><label>Quanto REALMENTE arrecadou em cotas<input name="collected_total" type="number" step="0.01" min="0" value="'+safeNum(f.collected_total)+'"></label><label class="full">Observações<textarea name="notes" rows="3">'+esc(f.notes||'')+'</textarea></label><div class="full"><button class="btn gold">💾 Salvar fechamento</button></div></form></div>'+
+        '<div class="command-card"><h3>➕ Complementos e dinheiro extra</h3><p class="mini muted">Registre exatamente de onde saiu o dinheiro quando a cota não deu.</p><div class="row-actions"><button class="btn gold" onclick="adicionarComplemento(\''+eventId+'\')">➕ Registrar complemento</button></div><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Origem</th><th>Valor</th><th>Observação</th><th>Ação</th></tr></thead><tbody>'+((comps.length?comps.map(c=>'<tr><td>'+esc(c.source_type)+'</td><td>'+efMoney(c.amount)+'</td><td>'+esc(c.notes||'')+'</td><td><button class="btn danger small" onclick="removerComplemento(\''+c.id+'\',\''+eventId+'\')">Excluir</button></td></tr>').join(''):'<tr><td colspan="4">Nenhum complemento registrado.</td></tr>'))+'</tbody></table></div></div>'+
+        '<div class="command-card"><h3>🧾 Compras desta festa</h3><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Item</th><th>Status</th><th>Orçado</th><th>Pago</th><th>Diferença</th></tr></thead><tbody>'+((items.length?items.map(x=>{const p=safeNum(x.total_price||safeNum(x.quantity)*safeNum(x.quoted_price)),a=safeNum(x.actual_total_price),diff=a-p;return '<tr><td>'+esc(x.item_name)+'</td><td>'+STATUS_LABELS[normalizeStatus(x.status)]+'</td><td>'+efMoney(p)+'</td><td>'+efMoney(a)+'</td><td>'+efMoney(diff)+'</td></tr>'}).join(''):'<tr><td colspan="5">Nenhuma compra vinculada a esta festa.</td></tr>'))+'</tbody></table></div></div>'+
+        '<div class="event-finance-recommend"><b>🧠 Próxima cota</b><p>'+recommendation+'</p></div>';
+      document.getElementById('eventFinanceForm').onsubmit=async ev=>{
+        ev.preventDefault();
+        const d=Object.fromEntries(new FormData(ev.target));
+        const payload={event_id:eventId,quota_value:safeNum(d.quota_value),quota_count:Math.trunc(safeNum(d.quota_count)),collected_total:safeNum(d.collected_total),notes:d.notes||null,updated_at:new Date().toISOString()};
+        const q=await sb.from('event_financials').upsert(payload,{onConflict:'event_id'}).select().single();
+        if(q.error){msg(q.error);return}
+        await audit('update_event_financial','event_financials',q.data.id,payload);
+        abrirFestaFinanceiro(eventId);
+      };
+    }catch(e){msg(e)}
+  }
+
+  async function adicionarComplemento(eventId){
+    const source=prompt('Origem do dinheiro:\n1 = Dinheiro da Aldeia\n2 = Meu dinheiro / dinheiro próprio\n3 = Doação extra\n4 = Outra fonte','1');
+    const map={'1':'Dinheiro da Aldeia','2':'Dinheiro próprio','3':'Doação extra','4':'Outra fonte'};
+    const sourceType=map[String(source||'').trim()];
+    if(!sourceType)return;
+    const amount=safeNum(prompt('Quanto foi colocado?','0'));
+    if(amount<=0){alert('Informe um valor maior que zero.');return}
+    const notes=prompt('Observação (opcional):','');
+    const q=await sb.from('event_financial_complements').insert({event_id:eventId,source_type:sourceType,amount,notes:notes||null,created_by:me.id});
+    if(q.error){msg(q.error);return}
+    await audit('add_event_financial_complement','event_financial_complements',null,{event_id:eventId,source_type:sourceType,amount});
+    abrirFestaFinanceiro(eventId);
+  }
+
+  async function removerComplemento(id,eventId){
+    if(!confirm('Remover este complemento do fechamento?'))return;
+    const q=await sb.from('event_financial_complements').delete().eq('id',id);
+    if(q.error){msg(q.error);return}
+    await audit('remove_event_financial_complement','event_financial_complements',id,{event_id:eventId});
+    abrirFestaFinanceiro(eventId);
+  }
+
+  async function efQuotaRecommendation(currentEventId){
+    const [fr,ir]=await Promise.all([
+      sb.from('event_financials').select('event_id,quota_count,quota_value'),
+      sb.from('finance_budget_items').select('event_id,actual_total_price,total_price,quantity,quoted_price')
+    ]);
+    if(fr.error||ir.error)return 'Ainda não há histórico suficiente para calcular automaticamente.';
+    const byEvent={};
+    (ir.data||[]).forEach(x=>{
+      if(!x.event_id)return;
+      byEvent[x.event_id]=(byEvent[x.event_id]||0)+safeNum(x.actual_total_price||x.total_price||safeNum(x.quantity)*safeNum(x.quoted_price));
+    });
+    const hist=(fr.data||[]).filter(x=>x.event_id!==currentEventId&&safeNum(x.quota_count)>0&&safeNum(byEvent[x.event_id])>0).map(x=>byEvent[x.event_id]/safeNum(x.quota_count));
+    if(!hist.length)return 'Ainda não há histórico suficiente. Depois do primeiro fechamento o portal passa a guardar o custo real por cota.';
+    const avg=hist.reduce((a,b)=>a+b,0)/hist.length;
+    return 'Com base em '+hist.length+' fechamento(s) anterior(es), o custo médio real foi de <b>'+efMoney(avg)+'</b> por pessoa/cota. Essa é a referência histórica para a próxima cota.';
+  }
+
+  async function gerarRelatorioFesta(eventId){
+    const [er,fr,cr,ir]=await Promise.all([
+      sb.from('events').select('*').eq('id',eventId).single(),
+      sb.from('event_financials').select('*').eq('event_id',eventId).maybeSingle(),
+      sb.from('event_financial_complements').select('*').eq('event_id',eventId).order('created_at'),
+      sb.from('finance_budget_items').select('*').eq('event_id',eventId).order('created_at')
+    ]);
+    if(er.error){msg(er.error);return}
+    const e=er.data,f=fr.data||{quota_value:0,quota_count:0,collected_total:0},cs=cr.data||[],items=ir.data||[];
+    const planned=items.reduce((s,x)=>s+safeNum(x.total_price||safeNum(x.quantity)*safeNum(x.quoted_price)),0);
+    const spent=items.reduce((s,x)=>s+safeNum(x.actual_total_price),0);
+    const cost=spent||planned;
+    const extra=cs.filter(x=>x.source_type==='Doação extra').reduce((s,x)=>s+safeNum(x.amount),0);
+    const comp=cs.filter(x=>x.source_type!=='Doação extra').reduce((s,x)=>s+safeNum(x.amount),0);
+    const raised=safeNum(f.collected_total)+extra;
+    const diff=raised-cost;
+    const w=open('','_blank');if(!w){alert('Permita pop-ups para gerar o relatório.');return}
+    w.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório financeiro - '+esc(e.title)+'</title><style>body{font-family:Arial;max-width:1000px;margin:30px auto;color:#222}h1,h2{font-family:Georgia;color:#624a18}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.box{border:1px solid #ddd;padding:12px;border-radius:10px}.item{border-bottom:1px solid #ddd;padding:8px 0}@media(max-width:700px){.grid{grid-template-columns:1fr}}</style></head><body><h1>Relatório Financeiro — '+esc(e.title)+'</h1><p>Gerado em '+new Date().toLocaleString('pt-BR')+'</p><div class="grid"><div class="box"><b>Gasto real</b><br>'+efMoney(cost)+'</div><div class="box"><b>Cotas arrecadadas</b><br>'+efMoney(f.collected_total)+'</div><div class="box"><b>Doações extras</b><br>'+efMoney(extra)+'</div><div class="box"><b>Complementos</b><br>'+efMoney(comp)+'</div><div class="box"><b>Saldo antes dos complementos</b><br>'+efMoney(diff)+'</div><div class="box"><b>Meta de cotas</b><br>'+efMoney(safeNum(f.quota_value)*safeNum(f.quota_count))+'</div></div><h2>Compras</h2>'+items.map(x=>'<div class="item"><b>'+esc(x.item_name)+'</b> — '+esc(x.quantity)+' '+esc(x.unit||'')+' — Orçado '+efMoney(x.total_price)+' — Pago '+efMoney(x.actual_total_price)+' — '+STATUS_LABELS[normalizeStatus(x.status)]+'</div>').join('')+'<h2>Complementos</h2>'+cs.map(x=>'<div class="item">'+esc(x.source_type)+' — '+efMoney(x.amount)+' — '+esc(x.notes||'')+'</div>').join('')+'<script>window.print()<\\/script></body></html>');w.document.close();
+  }
+
+  // Add a dedicated menu entry without disturbing the existing Comandante navigation.
+  function addFinanceMenu(){
+    const groups=[...document.querySelectorAll('.command-nav .nav-group')];
+    const g=groups.find(x=>x.querySelector('.nav-group-title')?.textContent.trim()==='FINANCEIRO');
+    if(!g||g.querySelector('[data-event-finance]'))return;
+    const b=document.createElement('button');
+    b.type='button';b.textContent='📊 Fechamento das festas';b.setAttribute('data-event-finance','1');b.onclick=()=>festaFinanceiro();
+    g.appendChild(b);
+  }
+
+  // Expose the new workflow to the existing inline buttons.
+  window.compras=compras;
+  window.novaCompra=novaCompra;
+  window.editarCompra=editarCompra;
+  window.formCompra=formCompra;
+  window.registrarCompra=registrarCompra;
+  window.festaFinanceiro=festaFinanceiro;
+  window.abrirFestaFinanceiro=abrirFestaFinanceiro;
+  window.adicionarComplemento=adicionarComplemento;
+  window.removerComplemento=removerComplemento;
+  window.gerarRelatorioFesta=gerarRelatorioFesta;
+  window.efQuotaRecommendation=efQuotaRecommendation;
+
+  // The original page has already booted by the time this block is parsed.
+  setTimeout(addFinanceMenu,700);
+})();
+</script>
+</body></html>
