@@ -885,7 +885,7 @@ async function avisos(){
 function novoAvisoADM(){avisoADMForm({})}function editarAvisoADM(id){avisoADMForm((window.__adminNotices||[]).find(x=>x.id===id)||{})}
 function avisoADMForm(n){
  view.innerHTML='<h2>🚨 '+(n.id?'Editar':'Novo')+' aviso administrativo</h2><form id="anf" class="command-form"><label>Título<input name="title" value="'+esc(n.title||'')+'" required></label><label>Data<input name="event_date" type="date" value="'+esc(n.event_date||today())+'"></label><label>Horário<input name="event_time" type="time" value="'+esc((n.event_time||'').slice(0,5))+'"></label><label><input type="checkbox" name="mandatory" '+(n.mandatory!==false?'checked':'')+'> Presença/ciência obrigatória</label><label class="full">Texto<textarea name="body" rows="9" required>'+esc(n.body||'')+'</textarea></label><label><input type="checkbox" name="published" '+(n.published!==false?'checked':'')+'> Publicar agora</label><div class="full"><button class="btn gold">Salvar aviso</button> <button class="btn secondary" type="button" onclick="avisos()">Cancelar</button></div></form>';
- document.getElementById('anf').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const row={title:d.title,body:d.body,event_date:d.event_date||null,event_time:d.event_time?d.event_time+':00':null,mandatory:d.mandatory==='on',published:d.published==='on',created_by:me.id};const q=n.id?sb.from('admin_notices').update(row).eq('id',n.id):sb.from('admin_notices').insert(row).select().single();const {data,error}=await q;if(error){msg(error);return}await audit(n.id?'update_admin_notice':'create_admin_notice','admin_notices',n.id||data?.id,{title:d.title});avisos()}
+ document.getElementById('anf').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const row={title:d.title,body:d.body,event_date:d.event_date||null,event_time:d.event_time?d.event_time+':00':null,mandatory:d.mandatory==='on',audience:d.audience||'todos',published:d.published==='on',created_by:me.id};const q=n.id?sb.from('admin_notices').update(row).eq('id',n.id):sb.from('admin_notices').insert(row).select().single();const {data,error}=await q;if(error){msg(error);return}await audit(n.id?'update_admin_notice':'create_admin_notice','admin_notices',n.id||data?.id,{title:d.title});avisos()}
 }
 async function verCiencia(id){
  const n=(window.__adminNotices||[]).find(x=>x.id===id);const {data}=await sb.from('admin_notice_acknowledgements').select('profile_id,acknowledged_at,profiles(full_name,username,role)').eq('notice_id',id).order('acknowledged_at');
@@ -922,7 +922,7 @@ async function editarAviso(id){
  '<label>Horário<input name="event_time" type="time" value="'+esc(n.event_time||'')+'"></label>'+
  '<label>Validade<input name="expires_at" type="datetime-local" value="'+esc(n.expires_at?String(n.expires_at).slice(0,16):'')+'"><small class="muted">Opcional. Após essa data o portal pode ocultar o aviso.</small></label>'+
  '<label class="full">Mensagem<textarea name="body" rows="9" required placeholder="Escreva o comunicado...">'+esc(n.body||'')+'</textarea></label>'+
- '<label><input type="checkbox" name="mandatory" '+(n.mandatory?'checked':'')+'> Exigir ciência</label>'+
+ '<label><input type="checkbox" name="mandatory" '+(n.mandatory?'checked':'')+'> Exigir ciência</label><label>Publicar para<select name="audience"><option value="todos">🌎 Todos — público + filhos + ADMs</option><option value="publico">🌐 Somente público</option><option value="filhos">👨‍👩‍👧 Somente filhos</option><option value="adm">🔐 Somente ADMs</option></select></label>'+
  '<label><input type="checkbox" name="published" '+(n.published?'checked':'')+'> Publicar no portal</label>'+
  '<div class="full"><button class="btn gold">💾 Salvar comunicado</button><button type="button" class="btn secondary" onclick="portal()">Cancelar</button></div></form>';
  document.getElementById('nf').onsubmit=async e=>{
@@ -930,7 +930,7 @@ async function editarAviso(id){
    const row={title:d.title,body:d.body,event_date:d.event_date||null,event_time:d.event_time||null,expires_at:d.expires_at?new Date(d.expires_at).toISOString():null,mandatory:d.mandatory==='on',published:d.published==='on',published_at:d.published==='on'?(n.published_at||new Date().toISOString()):null,created_by:n.created_by||me.id};
    const q=id?await sb.from('admin_notices').update(row).eq('id',id).select().single():await sb.from('admin_notices').insert(row).select().single();
    if(q.error){msg(q.error);return}
-   await audit(id?'update_admin_notice':'create_admin_notice','admin_notices',id||q.data.id,{title:d.title,published:row.published,mandatory:row.mandatory});
+   await audit(id?'update_admin_notice':'create_admin_notice','admin_notices',id||q.data.id,{title:d.title,published:row.published,mandatory:row.mandatory,audience:row.audience});
    portal();
  }
 }
