@@ -447,9 +447,14 @@ main,section,.command{color:#f7f2e8}
 #systemDialog .system-dialog-detail{margin-top:12px;padding:11px 12px;border-radius:10px;background:#211b12;border:1px solid #4a3b1b;font-size:13px;color:#e9dfce;white-space:pre-wrap}
 #systemDialog .system-dialog-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
 #systemDialog .system-dialog-actions button{flex:1;min-width:150px}
-</style><link rel="manifest" href="/manifest.webmanifest"><script src="/assets/js/resilience.js"></script><script src="/assets/js/self-heal.js"></script></head>
+
+<style>
+.commander-shortcuts{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;padding:12px 18px;background:#0b0906;border-bottom:1px solid #5f4814}
+.commander-shortcuts .btn{min-height:44px}
+@media(max-width:760px){.commander-shortcuts{padding:10px 12px;gap:8px}.commander-shortcuts .btn{flex:1;min-width:145px;font-size:13px}}
+</style></style><link rel="manifest" href="/manifest.webmanifest"><script src="/assets/js/resilience.js"></script><script src="/assets/js/self-heal.js"></script></head>
 <body class="internal">
-<header class="top"><a class="brand" href="index.html"><span class="brand-mark">✦</span><span><b>Aldeia Tupinambá</b><small>Comando geral dos ADMs</small></span></a><span id="who">Comandante Financeiro</span><button class="btn secondary" onclick="sair()">Sair</button></header>
+<header class="top"><a class="brand" href="index.html"><span class="brand-mark">✦</span><span><b>Aldeia Tupinambá</b><small>Comando geral dos ADMs</small></span></a><span id="who">Comandante Financeiro</span><button class="btn secondary" onclick="sair()">Sair</button></header><div class="commander-shortcuts" aria-label="Atalhos do Comandante"><button type="button" class="btn gold" onclick="logins()">🔐 Acessos e senhas</button><button type="button" class="btn outline" onclick="novoLogin()">🎲 Novo acesso / gerar código</button></div>
 <main class="panel command">
 <section class="command-hero"><span class="eyebrow">COMANDO GERAL</span><h1>👑 Central do Comandante Geral</h1><p>O ponto central de controle da casa: membros, escalas, financeiro, avisos, regras, portal, PIX, logins e relatórios.</p><div class="notice-box">🔐 <b>Acesso administrativo máximo.</b> Somente o Comandante Geral pode operar esta central e administrar acessos, senhas e permissões. Todas as ações ficam registradas no histórico.</div></section>
 <div class="command-workspace"><aside class="command-sidebar"><div class="sidebar-label">NAVEGAÇÃO DO COMANDO</div><nav class="command-nav" id="nav" aria-label="Módulos do Comandante"></nav></aside><section id="view" class="command-view" aria-live="polite"></section></div>
