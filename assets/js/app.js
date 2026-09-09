@@ -483,7 +483,6 @@
     await syncPublicSettings();
     await syncPortalContent();
     await syncEvents();
-    await syncPublicScales();
     await syncPortalMedia();
     await trackPortalVisit();
     await loadDonationCampaigns();
