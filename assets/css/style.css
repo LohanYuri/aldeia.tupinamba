@@ -171,3 +171,11 @@ main > section.portal-content.portal-open{display:block;animation:portalReveal .
 @media(max-width:1050px){.portal-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.portal-hub{min-height:calc(100vh - 90px);padding:35px 16px}.portal-cards{grid-template-columns:1fr;gap:12px}.portal-card{min-height:112px;padding:18px}.portal-hub-head{margin-bottom:24px}.portal-hub-head h1{font-size:36px}.portal-card b{font-size:17px}}
 @media(prefers-reduced-motion:reduce){.portal-card,main > section.portal-content.portal-open{animation:none;transition:none}}
+
+/* ===== RODAPE: ACESSOS INTERNOS ===== */
+.footer-main{max-width:1250px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:25px;flex-wrap:wrap}
+.footer-brand{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.footer-private-links{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.footer-private-links a{display:inline-flex;align-items:center;gap:7px;padding:9px 13px;border:1px solid rgba(216,174,69,.28);border-radius:10px;color:#d8d0c5;text-decoration:none;background:rgba(255,255,255,.025);font-size:12px;transition:.2s}
+.footer-private-links a:hover{color:#fff;border-color:rgba(216,174,69,.7);background:rgba(216,174,69,.08);transform:translateY(-1px)}
+@media(max-width:600px){.footer-main{align-items:stretch}.footer-private-links{width:100%;justify-content:stretch}.footer-private-links a{flex:1;justify-content:center;text-align:center}.footer-brand{justify-content:center;text-align:center}}
