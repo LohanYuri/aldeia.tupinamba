@@ -513,3 +513,36 @@
     // Conteúdo e configurações públicos já foram aplicados pelo Supabase/CMS.
   });
 })();
+// ===== PORTAL INTERATIVO: CARDS ABREM/FECHAM =====
+function initPortalCards(){
+  const cards=document.querySelectorAll("[data-portal-target]");
+  const sections=document.querySelectorAll("main > section[id]");
+  if(!cards.length)return;
+  sections.forEach(s=>{if(s.id!=="inicio")s.classList.add("portal-content")});
+  const openSection=(id,card)=>{
+    const target=document.getElementById(id);
+    if(!target)return;
+    const wasOpen=target.classList.contains("portal-open");
+    sections.forEach(s=>{if(s.id!=="inicio")s.classList.remove("portal-open")});
+    cards.forEach(c=>{c.classList.remove("active");c.setAttribute("aria-expanded","false")});
+    if(wasOpen)return;
+    target.classList.add("portal-open");
+    if(card){card.classList.add("active");card.setAttribute("aria-expanded","true")}
+    setTimeout(()=>target.scrollIntoView({behavior:"smooth",block:"start"}),30);
+  };
+  cards.forEach(card=>{
+    card.setAttribute("aria-expanded","false");
+    card.addEventListener("click",()=>openSection(card.dataset.portalTarget,card));
+  });
+  document.querySelectorAll('#nav a[href^="#"]').forEach(a=>{
+    const id=a.getAttribute("href").slice(1);
+    if(id==="inicio")return;
+    a.addEventListener("click",e=>{
+      const target=document.getElementById(id);
+      if(!target)return;
+      e.preventDefault();
+      openSection(id,document.querySelector('[data-portal-target="'+id+'"]'));
+    });
+  });
+}
+document.addEventListener("DOMContentLoaded",initPortalCards);
