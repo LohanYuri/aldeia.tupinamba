@@ -34,6 +34,15 @@ const hash = async (v: string) => {
 };
 
 const randomPin = () => String(Math.floor(1000 + Math.random() * 9000));
+const makeInternalEmail = (base: string, seed: string) => {
+  const [local, ...domainParts] = base.split("@");
+  const domain = domainParts.join("@");
+  const alias = (seed || "acesso").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "")
+    .slice(0, 35) || "acesso";
+  return local + "+" + alias + "." + crypto.randomUUID().slice(0, 8) + "@" + domain;
+};
 
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -79,14 +88,11 @@ Deno.serve(async req => {
         const { data: settings } = await admin.from("commander_access_settings").select("fixed_email").eq("id", 1).maybeSingle();
         const base = (settings?.fixed_email || "").trim().toLowerCase();
         if (!base || !base.includes("@")) return json({ error: "Configure primeiro o e-mail fixo do terreiro em Acessos e senhas." }, 400);
-        const [local, ...domainParts] = base.split("@");
-        const domain = domainParts.join("@");
-        const alias = (body.username || body.full_name || "acesso").toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "").slice(0, 50) || "acesso";
-        authEmail = local + "+" + alias + "@" + domain;
+        authEmail = makeInternalEmail(base, body.username || body.full_name || "acesso");
       }
 
       const accessPin = body.access_pin && /^\d{4}$/.test(body.access_pin) ? body.access_pin : randomPin();
-      const internalPassword = "Ald_" + crypto.randomUUID() + "_" + crypto.randomUUID();
+      const internalPassword = "Ald_" + crypto.randomUUID().replaceAll("-", "") + "X9";
 
       const { data: created, error: createError } = await admin.auth.admin.createUser({
         email: authEmail,
@@ -94,7 +100,9 @@ Deno.serve(async req => {
         email_confirm: true,
         user_metadata: { full_name: body.full_name, username: body.username || null, provisioned_by_commander: true },
       });
-      if (createError || !created.user) return json({ error: createError?.message || "Falha ao criar usuário." }, 400);
+      if (createError || !created.user) {
+        return json({ error: "Não foi possível criar o acesso no Auth: " + (createError?.message || "usuário não retornado.") }, 400);
+      }
 
       const profile = {
         id: created.user.id,
