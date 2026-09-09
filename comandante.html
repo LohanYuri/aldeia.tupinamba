@@ -437,7 +437,17 @@ main,section,.command{color:#f7f2e8}
 }
 
 </style>
-</head>
+<style id="system-dialog-fix">
+#systemDialog[hidden]{display:none!important}
+#systemDialog{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.78);backdrop-filter:blur(5px)}
+#systemDialog .system-dialog-box{width:min(520px,100%);background:#12100c;border:1px solid #c99b22;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.55);padding:22px;color:#f7f2e8}
+#systemDialog .system-dialog-icon{font-size:34px;margin-bottom:8px}
+#systemDialog h3{margin:0 0 8px;font-size:22px;color:#fff}
+#systemDialog p{margin:0;line-height:1.55;color:#ddd6ca;white-space:pre-line}
+#systemDialog .system-dialog-detail{margin-top:12px;padding:11px 12px;border-radius:10px;background:#211b12;border:1px solid #4a3b1b;font-size:13px;color:#e9dfce;white-space:pre-wrap}
+#systemDialog .system-dialog-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+#systemDialog .system-dialog-actions button{flex:1;min-width:150px}
+</style></head>
 <body class="internal">
 <header class="top"><a class="brand" href="index.html"><span class="brand-mark">✦</span><span><b>Aldeia Tupinambá</b><small>Comando geral dos ADMs</small></span></a><span id="who">Comandante Financeiro</span><button class="btn secondary" onclick="sair()">Sair</button></header>
 <main class="panel command">
@@ -859,11 +869,30 @@ function loginForm(u){
      try{
        if(error?.context){const body=await error.context.clone().json();if(body?.error)detail=body.error;}
      }catch(_){}
-     alert(detail);
+     const duplicate=/profiles_username_unique|duplicate key value.*username|username_unique/i.test(detail);
+     const repaired=duplicate && data?.username;
+     await showSystemDialog(repaired?{
+       title:'Cadastro ajustado automaticamente',
+       message:'O usuário informado já estava cadastrado. O sistema corrigiu o conflito e criou o novo acesso sem perder as informações.',
+       detail:'Usuário utilizado: '+data.username+'\\nCódigo de acesso: '+(data.access_pin||'—')+'\\n\\nAnote esses dados e envie em privado.',
+       icon:'🛠️',
+       actions:[{label:'Entendi',kind:'gold'}]
+     }:{
+       title:duplicate?'Usuário já cadastrado':'Não foi possível salvar',
+       message:duplicate?'Esse usuário já existe. O sistema tentou corrigir automaticamente, mas ainda encontrou um conflito.':'O cadastro não foi concluído.',
+       detail:duplicate?'Detalhe técnico: '+detail+'\\n\\nTente outro nome de usuário ou toque novamente em Salvar.':'Detalhe: '+detail+'\\n\\nSe for um erro reparável, você pode corrigir o campo indicado e tentar novamente.',
+       icon:duplicate?'🔁':'⚠️',
+       actions:[{label:'Voltar e corrigir',kind:'gold'}]
+     });
      return;
    }
-   await audit(u.id?'update_login':'create_login','profiles',u.id||data?.id,{username:d.username,role,active:d.active==='on'});
-   await loadBase(); if(!u.id && data?.access_pin){alert('ACESSO CRIADO!\n\nUsuário: '+d.username+'\nCódigo de acesso: '+data.access_pin+'\n\nAnote e envie este código em privado. Ele não será exibido novamente.');} else alert('Acesso atualizado com sucesso.'); logins();
+   await audit(u.id?'update_login':'create_login',u.id||data?.id,{username:d.username,role,active:d.active==='on'});
+   await loadBase(); if(!u.id && data?.access_pin){
+ const actualUser=data.username||d.username;
+ await showSystemDialog({title:'Acesso criado com sucesso',message:data.username_adjusted?'O sistema encontrou um nome de usuário já utilizado e ajustou automaticamente para um disponível.':'O acesso foi criado normalmente.',detail:'Usuário: '+actualUser+'\\nCódigo de acesso: '+data.access_pin+'\\n\\nEsse código deve ser enviado em privado e não será exibido novamente.',icon:'✅',actions:[{label:'Concluir',kind:'gold'}]});
+ } else {
+ await showSystemDialog({title:'Acesso atualizado',message:'As informações foram salvas com sucesso.',icon:'✅',actions:[{label:'OK',kind:'gold'}]});
+ } logins();
  };
 }
 async function excluirLogin(id){
@@ -1313,4 +1342,25 @@ async function auditoria(){const {data}=await sb.from('audit_logs').select('crea
 async function sair(){await sb.auth.signOut();if(new URLSearchParams(location.search).get('embedded')==='1'&&window.parent!==window){window.parent.location.href='adm.html';return}location.href='index.html'}
 init();
 </script>
-</body></html>
+<div id="systemDialog" hidden>
+  <div class="system-dialog-box" role="dialog" aria-modal="true" aria-labelledby="systemDialogTitle">
+    <div id="systemDialogIcon" class="system-dialog-icon">⚠️</div>
+    <h3 id="systemDialogTitle">Atenção</h3>
+    <p id="systemDialogMessage"></p>
+    <div id="systemDialogDetail" class="system-dialog-detail" hidden></div>
+    <div id="systemDialogActions" class="system-dialog-actions"></div>
+  </div>
+</div><script>
+function showSystemDialog({title='Atenção',message='',detail='',icon='⚠️',actions=[{label:'Entendi',kind:'secondary'}]}={}){
+  const modal=document.getElementById('systemDialog'); if(!modal)return Promise.resolve();
+  document.getElementById('systemDialogIcon').textContent=icon;
+  document.getElementById('systemDialogTitle').textContent=title;
+  document.getElementById('systemDialogMessage').textContent=message;
+  const det=document.getElementById('systemDialogDetail'); det.hidden=!detail; det.textContent=detail;
+  const box=document.getElementById('systemDialogActions'); box.innerHTML='';
+  return new Promise(resolve=>{
+    actions.forEach((a,i)=>{const b=document.createElement('button');b.type='button';b.className='btn '+(a.kind==='gold'?'gold':'secondary');b.textContent=a.label;b.onclick=()=>{modal.hidden=true;resolve(a.value||a.label)};box.appendChild(b);});
+    modal.hidden=false; (box.querySelector('button'))?.focus();
+  });
+}
+</script></body></html>
