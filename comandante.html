@@ -825,6 +825,7 @@ async function logins(){
 function aniversariantes(entrada=false){const now=new Date();const list=users.filter(u=>u.active&&(entrada?u.joined_at:u.birth_date)).map(u=>{const d=new Date((entrada?u.joined_at:u.birth_date)+'T12:00:00');return {u,d}}).sort((a,b)=>{const ad=new Date(now.getFullYear(),a.d.getMonth(),a.d.getDate()),bd=new Date(now.getFullYear(),b.d.getMonth(),b.d.getDate());return ad-bd});view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">MEMÓRIA DA CASA</span><h2>'+ (entrada?'🕯️ Datas de entrada na casa':'🎂 Aniversariantes') +'</h2><p class="lead">'+(entrada?'Celebre os ciclos e a caminhada de Filhos e ADMs.':'Filhos e ADMs com aniversário próximo.')+'</p></div><button class="btn secondary" onclick="logins()">← Voltar</button></div><div class="command-grid">'+(list.length?list.map(x=>'<div class="command-card"><h3>'+ (entrada?'🕯️ ':'🎂 ')+esc(x.u.full_name||x.u.username)+'</h3><p><b>'+String(x.d.getDate()).padStart(2,'0')+'/'+String(x.d.getMonth()+1).padStart(2,'0')+'</b></p><p class="muted">'+esc(roleLabel(x.u.role))+(x.u.house_function?' • '+esc(x.u.house_function):'')+'</p></div>').join(''):'<div class="command-card"><p>Nenhuma data cadastrada ainda.</p></div>')+'</div>'};
 function novoLogin(){loginForm({})}
 function editarLogin(id){loginForm(users.find(x=>x.id===id)||{})}
+function gerarCodigoAcesso(){const i=document.getElementById('accessPinNew');if(i)i.value=String(Math.floor(1000+Math.random()*9000));}
 function sugerirUsuario(){const n=document.querySelector('#lf input[name="full_name"]')?.value||'';const i=document.querySelector('#lf input[name="username"]');if(i&&!i.dataset.manual)i.value=makeUsername(n)}
 function loginForm(u){
  const child=children.find(c=>c.profile_id===u.id);
@@ -837,7 +838,7 @@ function loginForm(u){
  '<label>Perfil<select name="role" '+(u.id===me.id?'disabled':'')+'>'+roleOptions+'</select></label>'+
  '<label>Função na casa<select name="house_function"><option value="">— Selecione —</option><option '+(u.house_function==='Mãe de Santo'?'selected':'')+'>Mãe de Santo</option><option '+(u.house_function==='Pai de Santo'?'selected':'')+'>Pai de Santo</option><option '+(u.house_function==='Mãe Pequena'?'selected':'')+'>Mãe Pequena</option><option '+(u.house_function==='Pai Pequeno'?'selected':'')+'>Pai Pequeno</option><option '+(u.house_function==='Ogã'?'selected':'')+'>Ogã</option><option '+(u.house_function==='Cambone'?'selected':'')+'>Cambone</option><option '+(u.house_function==='Outra função'?'selected':'')+'>Outra função</option></select></label>'+
  '<label>Data de nascimento<input name="birth_date" type="date" value="'+esc(u.birth_date||'')+'"></label><label>Data de entrada na casa<input name="joined_at" type="date" value="'+esc(u.joined_at||'')+'"></label>'+
- '<div class="notice-box"><b>🔢 Código de acesso:</b> gerado automaticamente pelo sistema com 4 dígitos ao criar este acesso.</div>'+
+ '<div class="notice-box"><b>🔢 Código de acesso</b><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><input id="accessPinNew" name="access_pin" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="0000" style="max-width:180px;letter-spacing:.3em;font-size:22px;text-align:center"><button type="button" class="btn outline" onclick="gerarCodigoAcesso()">🎲 Gerar código</button></div><small class="muted">Você pode digitar 4 números ou tocar em “Gerar código”.</small></div>'+
  
  
  '<label><input type="checkbox" name="active" '+(u.active!==false?'checked':'')+'> Acesso ativo</label>'+
@@ -848,10 +849,10 @@ function loginForm(u){
  full.addEventListener('input',()=>{if(!un.dataset.manual)sugerirUsuario()});
  lf.onsubmit=async e=>{
    e.preventDefault();const d=Object.fromEntries(new FormData(e.target));
-   if(isNew&&!d.password){alert('Informe uma senha ou use “Gerar senha”.');return}
-   if(d.password&&d.shared){if(!setSharedPassword(d.password))return;}
+   if(isNew&&!d.access_pin){d.access_pin=String(Math.floor(1000+Math.random()*9000));}
+   if(d.access_pin&&!/^[0-9]{4}$/.test(d.access_pin)){alert('O código de acesso deve ter exatamente 4 números.');return}
    const role=u.id===me.id?'financeiro':d.role;
-   const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username,role,active:d.active==='on',birth_date:d.birth_date||null,joined_at:d.joined_at||null,house_function:d.house_function||null,child_id:child?.id||null};
+   const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username,role,active:d.active==='on',birth_date:d.birth_date||null,joined_at:d.joined_at||null,house_function:d.house_function||null,child_id:child?.id||null,access_pin:d.access_pin||null};
    const {data,error}=await sb.functions.invoke('admin-users',{body:payload});
    if(error||data?.error){msg(data?.error||error);return}
    await audit(u.id?'update_login':'create_login','profiles',u.id||data?.id,{username:d.username,role,active:d.active==='on'});
