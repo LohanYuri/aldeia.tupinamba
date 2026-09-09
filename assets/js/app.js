@@ -518,7 +518,7 @@ function initPortalCards(){
   const cards=document.querySelectorAll("[data-portal-target]");
   const sections=document.querySelectorAll("main > section[id]");
   if(!cards.length)return;
-  sections.forEach(s=>{if(s.id!=="inicio")s.classList.add("portal-content")});
+  sections.forEach(s=>{if(s.id!=="inicio" && s.id!=="acessos")s.classList.add("portal-content")});
   const openSection=(id,card)=>{
     const target=document.getElementById(id);
     if(!target)return;
