@@ -27,6 +27,7 @@ body.login{min-height:100vh}
 <label>Código de acesso<input id="senha" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="one-time-code" placeholder="4 dígitos"></label>
 <button class="btn" style="width:100%;margin-top:12px" onclick="entrar()">Entrar</button>
 <small id="erro"></small>
+<button id="resetBtn" class="btn secondary" style="width:100%;margin-top:10px;display:none" onclick="solicitarRedefinicao()">🔄 Redefinir acesso</button>
 <p><a href="../index.html">← Voltar ao portal público</a></p>
 <div class="notice" style="margin-top:20px;text-align:left">
 <b>Estrutura:</b> depois do login, cada perfil é enviado automaticamente para a área correspondente. O perfil <b>financeiro</b> entra na Central do Comandante.
@@ -36,13 +37,24 @@ body.login{min-height:100vh}
 <script src="../assets/js/supabase-config.js"></script>
 <script>
 const sb=window.ALDEIA_SUPABASE;
+function mostrarFalha(texto){const erro=document.getElementById('erro'),btn=document.getElementById('resetBtn');erro.textContent=texto;btn.style.display=document.getElementById('usuario').value.trim()?'block':'none'}
+async function solicitarRedefinicao(){
+ const u=document.getElementById('usuario').value.trim(),btn=document.getElementById('resetBtn');
+ if(!u){mostrarFalha('Digite seu usuário primeiro.');return}
+ btn.disabled=true;btn.textContent='⏳ Enviando solicitação...';
+ const {data,error}=await sb.functions.invoke('access-pin',{body:{action:'request_reset',username:u,expected_role:'adm'}});
+ btn.disabled=false;btn.textContent='🔄 Redefinir acesso';
+ if(error||data?.error){mostrarFalha(data?.error||'Não foi possível enviar a solicitação.');return}
+ document.getElementById('erro').textContent='✅ Solicitação enviada ao Comandante. Aguarde a autorização para receber um novo acesso.';
+ btn.style.display='none';
+}
 async function entrar(){
  const usuario=document.getElementById('usuario').value.trim(), senha=document.getElementById('senha').value, erro=document.getElementById('erro');
  const loginMap={Lohan:'aldeiatupinamba2027@gmail.com',Dusanto26:'dusanto26@aldeiatupinamba.internal','responsavel01@':'responsavel01@aldeiatupinamba.internal'};
  const email=loginMap[usuario]||usuario;
  erro.textContent='';
- const {data:pinData,error:pinError}=await sb.functions.invoke('access-pin',{body:{username:usuario,pin:senha,expected_role:'adm'}});
- if(pinError||pinData?.error){erro.textContent=pinData?.error||'Usuário ou código de acesso incorretos.';return}
+ const {data:pinData,error:pinError}=await sb.functions.invoke('access-pin',{body:{action:'login',username:usuario,pin:senha,expected_role:'adm'}});
+ if(pinError||pinData?.error){mostrarFalha(pinData?.error||'Usuário ou código de acesso incorretos.');return}
  const {data,error}=await sb.auth.verifyOtp({type:'email',token_hash:pinData.token_hash});
  if(error){erro.textContent='Usuário ou código de acesso incorretos.';return}
  const {data:profile}=await sb.from('profiles').select('full_name,role,active').eq('id',data.user.id).maybeSingle();
