@@ -15,6 +15,7 @@
 <label>Usuário<input id="usuario" autocomplete="username" placeholder="Seu usuário"></label>
 <label>Código de acesso<input id="pin" class="pin" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="0000"></label>
 <button class="btn gold" style="width:100%;margin-top:12px" onclick="entrar()">Entrar</button><small id="erro"></small>
+<button id="resetBtn" class="btn secondary" style="width:100%;margin-top:10px;display:none" onclick="solicitarRedefinicao()">🔄 Redefinir acesso</button>
 <div class="access-note"><b>🔐 Acesso pessoal</b><span>O usuário e o código são criados pelo Comandante Geral e devem ser enviados em privado.</span></div></div>
 <p><a href="index.html">← Voltar ao portal público</a></p>
 </main>
@@ -26,8 +27,19 @@
 </section></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="assets/js/supabase-config.js"></script><script>
 const sb=window.ALDEIA_SUPABASE;let profile=null;
-function showLogin(){choice.hidden=true;form.hidden=false;usuario.focus()} function showChoice(){choice.hidden=false;form.hidden=true;erro.textContent=''}
-async function entrar(){erro.textContent='';const u=usuario.value.trim(),p=pin.value.trim();if(!u||!/^[0-9]{4}$/.test(p)){erro.textContent='Informe o usuário e os 4 dígitos.';return}const {data,error}=await sb.functions.invoke('access-pin',{body:{username:u,pin:p,expected_role:'filho'}});if(error||data?.error){erro.textContent=data?.error||'Não foi possível entrar.';return}const v=await sb.auth.verifyOtp({type:'email',token_hash:data.token_hash});if(v.error){erro.textContent='Código de acesso recusado. Tente novamente.';return}await carregar(v.data.user)}
+function showLogin(){choice.hidden=true;form.hidden=false;erro.textContent='';resetBtn.style.display='none';usuario.focus()} function showChoice(){choice.hidden=false;form.hidden=true;erro.textContent='';resetBtn.style.display='none'}
+function mostrarFalha(texto){erro.textContent=texto;resetBtn.style.display=usuario.value.trim()?'block':'none'}
+async function solicitarRedefinicao(){
+ const u=usuario.value.trim();
+ if(!u){mostrarFalha('Digite seu usuário primeiro.');return}
+ resetBtn.disabled=true; resetBtn.textContent='⏳ Enviando solicitação...';
+ const {data,error}=await sb.functions.invoke('access-pin',{body:{action:'request_reset',username:u,expected_role:'filho'}});
+ resetBtn.disabled=false; resetBtn.textContent='🔄 Redefinir acesso';
+ if(error||data?.error){mostrarFalha(data?.error||'Não foi possível enviar a solicitação.');return}
+ erro.textContent='✅ Solicitação enviada ao Comandante. Ele foi avisado no painel administrativo. Aguarde a autorização.';
+ resetBtn.style.display='none';
+}
+async function entrar(){erro.textContent='';resetBtn.style.display='none';const u=usuario.value.trim(),p=pin.value.trim();if(!u||!/^[0-9]{4}$/.test(p)){mostrarFalha('Informe o usuário e os 4 dígitos.');return}const {data,error}=await sb.functions.invoke('access-pin',{body:{action:'login',username:u,pin:p,expected_role:'filho'}});if(error||data?.error){mostrarFalha(data?.error||'Não foi possível entrar.');return}const v=await sb.auth.verifyOtp({type:'email',token_hash:data.token_hash});if(v.error){mostrarFalha('Código de acesso recusado. Tente novamente ou solicite a redefinição.');return}await carregar(v.data.user)}
 async function carregar(user){const {data:p}=await sb.from('profiles').select('id,full_name,username,role,active').eq('id',user.id).maybeSingle();if(!p||p.role!=='filho'||!p.active){await sb.auth.signOut();erro.textContent='Este acesso não está cadastrado como Filho.';return}profile=p;loginBox.hidden=true;painel.hidden=false;nome.textContent=p.full_name||p.username||'';const {data:ns}=await sb.from('admin_notices').select('id,title,body,event_date,event_time,created_at').eq('published',true).or('audience.eq.filhos,audience.eq.todos').order('created_at',{ascending:false}).limit(20);avisos.innerHTML=ns?.length?ns.map(n=>'<div style="padding:10px 0;border-bottom:1px solid #3d321e"><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p><small class="muted">'+esc(n.event_date||'')+'</small></div>').join(''):'<p class="muted">Nenhum comunicado no momento.</p>'}
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 async function sair(){await sb.auth.signOut();location.reload()}
