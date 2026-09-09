@@ -1,5 +1,5 @@
-const CACHE='aldeia-portal-shell-v2';
-const CORE=['/','/index.html','/filhos.html','/adm/','/offline.html','/manifest.webmanifest','/assets/css/style.css','/assets/js/app.js','/assets/js/site-data.js','/assets/js/supabase-config.js','/assets/js/resilience.js','/assets/js/self-heal.js','/comandante.html','/adm.html'];
+const CACHE='aldeia-portal-shell-v4';
+const CORE=['/','/index.html','/filhos.html','/adm/','/offline.html','/manifest.webmanifest','/assets/css/style.css','/assets/js/app.js','/assets/js/site-data.js','/assets/js/supabase-config.js','/assets/js/resilience.js','/assets/js/self-heal.js','/assets/js/market-quote.js','/assets/js/orcamentos-avancados.js','/assets/js/comandante-operacao.js','/comandante.html','/adm.html'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE).catch(()=>{})).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
