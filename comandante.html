@@ -566,7 +566,7 @@ async function dashboard(){
    return '<div class="command-recent-item"><b>'+esc(label)+'</b><small class="muted">'+new Date(x.created_at).toLocaleString('pt-BR')+'</small></div>';
  }).join('');
  const noticeList=(notices||[]).slice(0,4).map(n=>{
-   const when=[n.event_date,n.event_time?String(n.event_time).slice(0,5):''].filter(Boolean).join(' • ');
+   const when=[n.event_date,n.event_time?String(n.event_time).slice(0,5):''].filter(Boolean).join(' • '); const aud={publico:'🌐 Público',filhos:'👨‍👩‍👧 Filhos',adm:'🔐 ADMs',todos:'🌎 Todos'}[n.audience||'todos'];
    return '<div class="attention-item"><span>🚨</span><div><strong>'+esc(n.title)+'</strong><div class="mini muted">'+esc(when||'Aviso publicado')+(n.mandatory?' • ciência obrigatória':'')+'</div></div></div>';
  }).join('');
  const attentionList=attentionRows.slice(0,6).map(x=>{
@@ -896,7 +896,7 @@ function whatsAviso(id){const n=(window.__adminNotices||[]).find(x=>x.id===id);c
 function openWhats(text){const u='https://wa.me/?text='+encodeURIComponent(text);window.open(u,'_blank');}
 async function portal(){
  const [{data:rows,error},{data:acks}]=await Promise.all([
-   sb.from('admin_notices').select('id,title,body,event_date,event_time,mandatory,published,published_at,expires_at,created_at,created_by').order('created_at',{ascending:false}).limit(300),
+   sb.from('admin_notices').select('id,title,body,event_date,event_time,mandatory,published,published_at,expires_at,created_at,created_by,audience').order('created_at',{ascending:false}).limit(300),
    sb.from('admin_notice_acknowledgements').select('notice_id,profile_id,acknowledged_at,profiles(full_name,username)')
  ]);
  if(error){msg(error);return}
@@ -905,7 +905,7 @@ async function portal(){
  view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">PORTAL</span><h2>📢 Comunicados e avisos</h2><p class="lead">Crie, edite, publique, agende, despublique e arquive os comunicados que aparecem para a comunidade.</p></div><button class="btn gold" onclick="novoAviso()">➕ Novo comunicado</button></div>'+
  '<div class="notice-box accountability-critical">📢 <b>Publicação:</b> somente avisos marcados como publicados aparecem no portal. Avisos obrigatórios podem exigir ciência do usuário. Nenhum comunicado é apagado automaticamente.</div>'+
  '<div class="command-grid">'+card('🌐 Publicados','<div class="command-stat">'+published.length+'</div><p>Visíveis no portal.</p>')+card('📝 Rascunhos','<div class="command-stat">'+drafts.length+'</div><p>Ainda não publicados.</p>')+card('⚠️ Obrigatórios','<div class="command-stat">'+mandatory.length+'</div><p>Exigem acompanhamento/ciência.</p>')+card('📋 Registros','<div class="command-stat">'+rows.length+'</div><p>Histórico preservado.</p>')+'</div>'+
- '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Comunicado</th><th>Evento</th><th>Tipo</th><th>Status</th><th>Ciência</th><th>Ações</th></tr></thead><tbody>'+
+ '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Comunicado</th><th>Evento</th><th>Público</th><th>Tipo</th><th>Status</th><th>Ciência</th><th>Ações</th></tr></thead><tbody>'+
  (rows||[]).map(n=>{
    const a=(acks||[]).filter(x=>x.notice_id===n.id);
    const when=[n.event_date,n.event_time?String(n.event_time).slice(0,5):''].filter(Boolean).join(' • ');
