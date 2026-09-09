@@ -1,5 +1,5 @@
 (() => {
-  const VERSION='2026.09.09-final-r2';
+  const VERSION='2026.09.09-final-r3';
   window.ALDEIA_PORTAL_VERSION=VERSION;
   const draftKey='aldeia_portal_drafts_v1';
   const saveDraft=(form)=>{
@@ -47,5 +47,18 @@
       return {ok:true,steps};
     }catch(e){return {ok:false,steps,error:e.message}};
   };
-  function CACHE_NAME(){return 'aldeia-portal-shell-v2'}
+  function CACHE_NAME(){return 'aldeia-portal-shell-v3'}
+
+  function loadMarketQuote(){
+    if(!location.pathname.split('/').pop().match(/^comandante\.html$/))return;
+    if(document.querySelector('script[data-aldeia-market-quote]'))return;
+    const s=document.createElement('script');
+    s.src='/assets/js/market-quote.js?v=20260909-r3';
+    s.async=true;
+    s.dataset.aldeiaMarketQuote='1';
+    s.onerror=()=>{window.__aldeiaLastError={message:'Módulo de cotação de mercado não carregou',at:new Date().toISOString()}};
+    document.head.appendChild(s);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadMarketQuote);
+  else loadMarketQuote();
 })();
