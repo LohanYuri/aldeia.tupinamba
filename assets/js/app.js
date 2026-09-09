@@ -409,7 +409,14 @@
       }
       const rulesBox=document.querySelector("#regras .rules");
       if(rulesBox && rules?.[0]){
-        rulesBox.innerHTML="<p><b>"+escapeHtml(rules[0].version)+"</b> — "+escapeHtml(rules[0].title)+"</p><p>"+escapeHtml(rules[0].body).replace(/\\n/g,"</p><p>")+"</p>";
+        const raw=String(rules[0].body||"").replace(/\\r/g,"");
+        const blocks=raw.split(/\\n\\s*\\n/).map(s=>s.trim()).filter(Boolean);
+        rulesBox.innerHTML=blocks.map(block=>{
+          const parts=block.split(/\\n/);
+          const title=parts.shift()||"";
+          const body=parts.join(" ").trim();
+          return '<article class="rule-item"><b class="rule-number">'+escapeHtml(title)+'</b><span>'+escapeHtml(body)+'</span></article>';
+        }).join("");
       }
     }catch(e){ console.warn("Conteúdo público do Supabase indisponível",e); }
   }
