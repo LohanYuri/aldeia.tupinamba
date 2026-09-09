@@ -816,6 +816,8 @@ async function logins(){
  if(error){msg(error);return}
  users=data||[];
  window.__fixedAccessEmail=settings?.fixed_email||'';
+ const resetCall=await sb.functions.invoke('access-pin',{body:{action:'list_reset_requests'}});
+ const resetRequests=resetCall.data?.requests||[];
  const linked=children.filter(c=>c.profile_id);
  const roleLabel=r=>({adm:'ADM',dirigente:'Mãe / Dirigente',filho:'Filho',financeiro:'👑 Comandante Geral'}[r]||r||'—');
  const roleClass=r=>r==='financeiro'?'success':r==='adm'?'warn':'';
@@ -825,7 +827,7 @@ async function logins(){
  }).join('');
  view.innerHTML=
  '<div class="command-dashboard-head"><div><span class="eyebrow">SEGURANÇA</span><h2>🔐 Acessos e senhas</h2><p class="lead">O Comandante cria os acessos de ADMs e filhos. O médium não precisa fornecer e-mail próprio.</p></div><button class="btn gold" onclick="novoLogin()">➕ Novo acesso</button></div>'+
- '<div class="command-card" style="margin-bottom:14px"><h3>📨 E-mail fixo do terreiro</h3><p class="mini muted">O sistema usa este endereço como caixa institucional. Para cada acesso, cria internamente um alias único; o Comandante não precisa pedir o e-mail do médium.</p><form id="emailSettings" class="command-form"><label class="full">E-mail fixo<input name="fixed_email" type="email" required value="'+esc(window.__fixedAccessEmail)+'" placeholder="email.oficial@..."></label><div class="full"><button class="btn gold">💾 Salvar e-mail fixo</button></div></form></div>'+
+ '<div id="resetRequestsArea">'+renderResetRequests(resetRequests)+'</div>'+" '<div class=\"command-card\" style=\"margin-bottom:14px\"><h3>📨 E-mail fixo do terreiro</h3>"<p class="mini muted">O sistema usa este endereço como caixa institucional. Para cada acesso, cria internamente um alias único; o Comandante não precisa pedir o e-mail do médium.</p><form id="emailSettings" class="command-form"><label class="full">E-mail fixo<input name="fixed_email" type="email" required value="'+esc(window.__fixedAccessEmail)+'" placeholder="email.oficial@..."></label><div class="full"><button class="btn gold">💾 Salvar e-mail fixo</button></div></form></div>'+
  '<div class="command-card" style="margin-bottom:14px"><h3>🔢 Código de acesso</h3><p class="mini muted">Cada Filho ou ADM recebe automaticamente um código exclusivo de 4 dígitos ao criar o acesso.</p></div>'+ '<div class="command-grid">'+card('🎂 Aniversariantes','<p>Filhos e ADMs com data de nascimento cadastrada.</p><button class="btn outline small" onclick="aniversariantes()">Ver aniversariantes</button>')+card('🕯️ Caminhadas','<p>Datas de entrada na casa registradas para celebrar os ciclos.</p><button class="btn outline small" onclick="aniversariantes(true)">Ver datas especiais</button>')+'</div>'+'<div class="command-grid">'+card('👥 Usuários','<div class="command-stat">'+users.length+'</div><p>Acessos cadastrados.</p>')+card('🟢 Ativos','<div class="command-stat">'+users.filter(x=>x.active).length+'</div><p>Podem entrar.</p>')+card('👤 Filhos com login','<div class="command-stat">'+linked.length+'</div><p>Cadastros vinculados.</p>')+'</div>'+
  '<div class="command-table-wrap"><table class="command-table"><thead><tr><th>Usuário</th><th>Nome / vínculo</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+ (rows||'<tr><td colspan="5">Nenhum acesso cadastrado.</td></tr>')+'</tbody></table></div>';
  document.getElementById('emailSettings').onsubmit=async e=>{
@@ -836,6 +838,30 @@ function aniversariantes(entrada=false){const now=new Date();const list=users.fi
 function novoLogin(){loginForm({})}
 function editarLogin(id){loginForm(users.find(x=>x.id===id)||{})}
 function gerarCodigoAcesso(){const i=document.getElementById('accessPinNew');if(i)i.value=String(Math.floor(1000+Math.random()*9000));}
+function renderResetRequests(list){
+ if(!list.length)return '<div class="command-card" style="margin-bottom:14px;border:1px solid #d8ae45"><h3>🔔 Solicitações de redefinição</h3><p class="mini muted">Nenhuma solicitação pendente.</p></div>';
+ return '<div class="command-card" style="margin-bottom:14px;border:1px solid #d8ae45"><h3>🔔 Solicitações de redefinição <span class="pill warn">'+list.length+' pendente(s)</span></h3><p class="mini muted">Quando um Filho ou ADM toca em “Redefinir acesso”, a solicitação chega aqui. O Comandante autoriza e o sistema substitui automaticamente o acesso anterior.</p>'+
+ list.map((r,i)=>{
+   const role=r.expected_role==='filho'?'👨‍👩‍👧 Filho':'🔐 ADM';
+   const matches=r.target_profile_id?[{id:r.target_profile_id,name:r.profiles?.full_name||r.profiles?.username||'Conta identificada'}]:
+     (r.expected_role==='filho'?children.filter(c=>c.profile_id).map(c=>({id:c.profile_id,name:c.full_name})):users.filter(u=>['adm','dirigente'].includes(u.role)).map(u=>({id:u.id,name:u.full_name||u.username})));
+   const opts=matches.map(m=>'<option value="'+esc(m.id)+'">'+esc(m.name)+'</option>').join('');
+   return '<div class="notice-box" style="margin-top:10px"><b>'+role+' • Usuário informado: '+esc(r.requested_username)+'</b><br><span class="mini muted">Solicitado em '+new Date(r.requested_at).toLocaleString('pt-BR')+'</span><label style="margin-top:8px">Conta que receberá o novo acesso<select id="resetTarget'+i+'">'+(opts||'<option value="">Nenhuma conta compatível encontrada</option>')+'</select></label><div class="row-actions" style="margin-top:8px"><button class="btn gold" data-reset-accept="'+esc(r.id)+'" onclick="aceitarRedefinicao(\''+esc(r.id)+'\',document.getElementById(\'resetTarget'+i+'\')?.value)">🔐 Aceitar e gerar novo acesso</button><button class="btn secondary" onclick="cancelarRedefinicao(\''+esc(r.id)+'\')">Dispensar</button></div></div>';
+ }).join('')+'</div>';
+}
+async function aceitarRedefinicao(requestId,targetId){
+ const btn=document.querySelector('[data-reset-accept="'+requestId+'"]');if(btn){btn.disabled=true;btn.textContent='⏳ Gerando...'}
+ const {data,error}=await sb.functions.invoke('access-pin',{body:{action:'accept_reset',request_id:requestId,target_profile_id:targetId||null}});
+ if(btn){btn.disabled=false;btn.textContent='🔐 Aceitar e gerar novo acesso'}
+ if(error||data?.error){await showSystemDialog({title:'Não foi possível redefinir',message:data?.error||error?.message||'O sistema não conseguiu concluir a redefinição.',detail:'O acesso atual foi preservado. Você pode tentar novamente.',icon:'⚠️',actions:[{label:'Entendi',kind:'gold'}]});return}
+ await showSystemDialog({title:'Novo acesso criado',message:'O acesso anterior foi substituído automaticamente. Envie estes dados em privado.',detail:'Acesso criado: '+data.username+'\nCódigo acesso: '+data.access_pin+'\n\nO código não será exibido novamente depois desta tela.',icon:'🔐',actions:[{label:'Concluir',kind:'gold'}]});
+ await loadBase();logins();
+}
+async function cancelarRedefinicao(requestId){
+ const {data,error}=await sb.functions.invoke('access-pin',{body:{action:'cancel_reset',request_id:requestId}});
+ if(error||data?.error){await showSystemDialog({title:'Não foi possível dispensar',message:data?.error||error?.message||'Tente novamente.',icon:'⚠️',actions:[{label:'Entendi',kind:'gold'}]});return}
+ logins();
+}
 function sugerirUsuario(){const n=document.querySelector('#lf input[name="full_name"]')?.value||'';const i=document.querySelector('#lf input[name="username"]');if(i&&!i.dataset.manual)i.value=makeUsername(n)}
 function loginForm(u){
  const child=children.find(c=>c.profile_id===u.id);
