@@ -498,7 +498,7 @@ async function init(){
 async function loadBase(){
  const [c,u]=await Promise.all([
   sb.from('children').select('id,full_name,profile_id,active,phone,birth_date,house_role,notes,photo_url,joined_at,display_order').order('display_order').order('full_name'),
-  sb.from('profiles').select('id,full_name,username,role,active,created_at').order('full_name')
+  sb.from('profiles').select('id,full_name,username,role,active,created_at,birth_date,joined_at,house_function').order('full_name')
  ]);
  children=c.data||[];users=u.data||[];
 }
@@ -810,7 +810,7 @@ async function logins(){
  users=data||[];
  window.__fixedAccessEmail=settings?.fixed_email||'';
  const linked=children.filter(c=>c.profile_id);
- const roleLabel=r=>({adm:'ADM operacional',dirigente:'Mãe / Dirigente',filho:'Filho',financeiro:'👑 Comandante Geral'}[r]||r||'—');
+ const roleLabel=r=>({adm:'ADM',dirigente:'Mãe / Dirigente',filho:'Filho',financeiro:'👑 Comandante Geral'}[r]||r||'—');
  const roleClass=r=>r==='financeiro'?'success':r==='adm'?'warn':'';
  const rows=users.map(u=>{
    const child=children.find(c=>c.profile_id===u.id);
@@ -836,7 +836,7 @@ function gerarSenhaSegura(){
 function sugerirUsuario(){const n=document.querySelector('#lf input[name="full_name"]')?.value||'';const i=document.querySelector('#lf input[name="username"]');if(i&&!i.dataset.manual)i.value=makeUsername(n)}
 function loginForm(u){
  const child=children.find(c=>c.profile_id===u.id);
- const roleOptions=[['adm','ADM operacional'],['dirigente','Mãe / Dirigente'],['filho','Filho']].map(([v,l])=>'<option value="'+v+'" '+(u.role===v?'selected':'')+'>'+l+'</option>').join('');
+ const roleOptions=[['adm','ADM'],['dirigente','Mãe / Dirigente'],['filho','Filho']].map(([v,l])=>'<option value="'+v+'" '+(u.role===v?'selected':'')+'>'+l+'</option>').join('');
  const isNew=!u.id;
  const defaultPwd=getSharedPassword();
  view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">CONTROLE DE ACESSO</span><h2>🔐 '+(u.id?'Editar acesso':'Criar acesso')+'</h2><p class="lead">O login é gerado pelo Comandante. Não é necessário o e-mail pessoal do médium.</p></div><button class="btn secondary" onclick="logins()">← Voltar</button></div>'+
@@ -844,7 +844,9 @@ function loginForm(u){
  '<form id="lf" class="command-form"><label>Nome completo<input name="full_name" value="'+esc(u.full_name||child?.full_name||'')+'" required></label>'+
  '<label>Usuário<input name="username" value="'+esc(u.username||makeUsername(u.full_name||child?.full_name||''))+'" required><small class="muted">Formato automático: primeiro e segundo nome + “@”.</small></label>'+
  '<label>Perfil<select name="role" '+(u.id===me.id?'disabled':'')+'>'+roleOptions+'</select></label>'+
- '<label>Nova senha<input name="password" type="password" minlength="8" value="'+esc(defaultPwd)+'" placeholder="'+(u.id?'Deixe vazio para manter a senha':'Digite a senha padrão para este acesso')+'"></label>'+
+ '<label>Função na casa<select name="house_function"><option value="">— Selecione —</option><option '+(u.house_function==='Mãe de Santo'?'selected':'')+'>Mãe de Santo</option><option '+(u.house_function==='Pai de Santo'?'selected':'')+'>Pai de Santo</option><option '+(u.house_function==='Mãe Pequena'?'selected':'')+'>Mãe Pequena</option><option '+(u.house_function==='Pai Pequeno'?'selected':'')+'>Pai Pequeno</option><option '+(u.house_function==='Ogã'?'selected':'')+'>Ogã</option><option '+(u.house_function==='Cambone'?'selected':'')+'>Cambone</option><option '+(u.house_function==='Outra função'?'selected':'')+'>Outra função</option></select></label>'+
+ '<label>Data de nascimento<input name="birth_date" type="date" value="'+esc(u.birth_date||'')+'"></label><label>Data de entrada na casa<input name="joined_at" type="date" value="'+esc(u.joined_at||'')+'"></label>'+
+ '<label>Nova senha<input name="password" type="password" minlength="8" value="'+esc(defaultPwd)+'" placeholder="'+(u.id?'Deixe vazio para manter a senha':'Digite a senha para este acesso')+'"></label>'+
  '<div style="display:flex;align-items:end;gap:8px"><button type="button" class="btn outline" onclick="gerarSenhaSegura()">🎲 Gerar senha</button></div>'+
  '<label><input type="checkbox" name="shared" '+(isNew?'checked':'')+'> Usar esta mesma senha como padrão para próximos acessos</label>'+
  '<label><input type="checkbox" name="active" '+(u.active!==false?'checked':'')+'> Acesso ativo</label>'+
@@ -858,7 +860,7 @@ function loginForm(u){
    if(isNew&&!d.password){alert('Informe uma senha ou use “Gerar senha”.');return}
    if(d.password&&d.shared){if(!setSharedPassword(d.password))return;}
    const role=u.id===me.id?'financeiro':d.role;
-   const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username, password:d.password,role,active:d.active==='on',child_id:child?.id||null};
+   const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username, password:d.password,role,active:d.active==='on',birth_date:d.birth_date||null,joined_at:d.joined_at||null,house_function:d.house_function||null,child_id:child?.id||null};
    const {data,error}=await sb.functions.invoke('admin-users',{body:payload});
    if(error||data?.error){msg(data?.error||error);return}
    await audit(u.id?'update_login':'create_login','profiles',u.id||data?.id,{username:d.username,role,active:d.active==='on',password_changed:Boolean(d.password)});
