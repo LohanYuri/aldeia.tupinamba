@@ -349,23 +349,38 @@ const sharedPasswordKey='aldeia_shared_access_password';
 const getSharedPassword=()=>sessionStorage.getItem(sharedPasswordKey)||'';
 function setSharedPassword(value){const v=String(value||'').trim();if(v.length<8){alert('A senha padrão deve ter pelo menos 8 caracteres.');return false}sessionStorage.setItem(sharedPasswordKey,v);return true}
 const msg=e=>alert(e?.message||e||'Operação concluída.');
-async function init(){
- const {data:{session}}=await sb.auth.getSession();
- if(!session){location.href='login-adm.html';return}
- const {data:p}=await sb.from('profiles').select('id,full_name,role,active,username').eq('id',session.user.id).maybeSingle();
- if(!p||p.role!=='financeiro'||!p.active){await sb.auth.signOut();location.href='login-adm.html';return}
- me=p;document.getElementById('who').textContent=(p.full_name||'Comandante')+' • COMANDANTE GERAL';view.innerHTML='<div class="notice-box" style="margin:18px 0;font-size:16px">⏳ <b>Central carregando...</b><br>Preparando os dados do Comandante.</div>';
+function renderCommandNav(){
  nav.innerHTML=(function(){
- const groups=[
-  ['COMANDO',['dashboard','🏠 Visão geral'],['notificacoes','🔔 Notificações'],['avisos','🚨 Avisos ADM'],['ocorrencias','⚖️ Ocorrências'],['auditoria','🛡️ Auditoria']],
-  ['PESSOAS E ACESSOS',['membros','👥 Painel dos Filhos'],['logins','🔐 Acessos e senhas']],
-  ['PORTAL',['portal','📢 Comunicados'],['editorPortal','🎨 Editor do Portal'],['regras','📜 Regras e dados'],['integracoes','📲 Integrações']],
-  ['FINANCEIRO',['financeiro','🧾 Cotas/Mensalidades'],['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['relatorios','📊 Relatório mensal']],
-  ['ESCALAS',['escala','📅 Escalas']]
- ];
- return groups.map((g,gi)=>'<details class="nav-group" '+(gi===0?'open':'')+'><summary class="nav-group-title">'+g[0]+'</summary>'+g.slice(1).map((x,i)=>'<button type="button" class="'+(gi===0&&i===0?'active':'')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('')+'</details>').join('');
-})();
- await loadBase();await dashboard();
+  const groups=[
+   ['COMANDO',['dashboard','🏠 Visão geral'],['notificacoes','🔔 Notificações'],['avisos','🚨 Avisos ADM'],['ocorrencias','⚖️ Ocorrências'],['auditoria','🛡️ Auditoria']],
+   ['PESSOAS E ACESSOS',['membros','👥 Painel dos Filhos'],['logins','🔐 Acessos e senhas']],
+   ['PORTAL',['portal','📢 Comunicados'],['editorPortal','🎨 Editor do Portal'],['regras','📜 Regras e dados'],['integracoes','📲 Integrações']],
+   ['FINANCEIRO',['financeiro','🧾 Cotas/Mensalidades'],['compras','🛒 Compras e orçamento'],['tesouraria','💰 Tesouraria'],['doacoes','🤲 Doações'],['campanhasDoacao','🤲 Caixinhas'],['conciliacaoDoacoes','🧾 Conciliação'],['relatorios','📊 Relatório mensal']],
+   ['ESCALAS',['escala','📅 Escalas']]
+  ];
+  return groups.map((g,gi)=>'<details class="nav-group" '+(gi===0?'open':'')+'><summary class="nav-group-title">'+g[0]+'</summary>'+g.slice(1).map((x,i)=>'<button type="button" class="'+(gi===0&&i===0?'active':'')+'" onclick="go(\''+x[0]+'\',this)">'+x[1]+'</button>').join('')+'</details>').join('');
+ })();
+}
+function showBootError(e){
+ const text=esc(e?.message||e||'Erro desconhecido');
+ view.innerHTML='<div class="notice-box error" style="margin-top:18px"><b>⚠️ A Central não conseguiu carregar os dados.</b><br>'+text+'<br><button class="btn gold" style="margin-top:10px" onclick="location.reload()">🔄 Tentar novamente</button></div>';
+}
+async function init(){
+ renderCommandNav();
+ view.innerHTML='<div class="notice-box" style="margin:18px 0;font-size:16px">⏳ <b>Central carregando...</b><br>Conectando ao sistema da Aldeia.</div>';
+ try{
+  if(!sb||!sb.auth) throw new Error('Conexão com o Supabase não foi carregada. Recarregue a página.');
+  const {data:{session},error:sessionError}=await sb.auth.getSession();
+  if(sessionError) throw sessionError;
+  if(!session){location.href='login-adm.html';return}
+  const {data:p,error:profileError}=await sb.from('profiles').select('id,full_name,role,active,username').eq('id',session.user.id).maybeSingle();
+  if(profileError) throw profileError;
+  if(!p||p.role!=='financeiro'||!p.active){await sb.auth.signOut();location.href='login-adm.html';return}
+  me=p;
+  document.getElementById('who').textContent=(p.full_name||'Comandante')+' • COMANDANTE GERAL';
+  await loadBase();
+  await dashboard();
+ }catch(e){showBootError(e)}
 }
 async function loadBase(){
  const [c,u]=await Promise.all([
