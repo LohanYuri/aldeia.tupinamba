@@ -839,7 +839,6 @@ function loginForm(u){
  const child=children.find(c=>c.profile_id===u.id);
  const roleOptions=[['adm','ADM'],['dirigente','Mãe / Dirigente'],['filho','Filho']].map(([v,l])=>'<option value="'+v+'" '+(u.role===v?'selected':'')+'>'+l+'</option>').join('');
  const isNew=!u.id;
- const defaultPwd=getSharedPassword();
  view.innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">CONTROLE DE ACESSO</span><h2>🔐 '+(u.id?'Editar acesso':'Criar acesso')+'</h2><p class="lead">O login é gerado pelo Comandante. Não é necessário o e-mail pessoal do médium.</p></div><button class="btn secondary" onclick="logins()">← Voltar</button></div>'+
  '<div class="notice-box">📨 <b>E-mail:</b> o sistema usará o e-mail fixo do terreiro configurado na tela anterior e criará um alias interno único para cada acesso.</div>'+
  '<form id="lf" class="command-form"><label>Nome completo<input name="full_name" value="'+esc(u.full_name||child?.full_name||'')+'" required></label>'+
@@ -853,7 +852,7 @@ function loginForm(u){
  '<label><input type="checkbox" name="active" '+(u.active!==false?'checked':'')+'> Acesso ativo</label>'+
  '<div class="full"><button class="btn gold">💾 Salvar acesso</button> <button type="button" class="btn secondary" onclick="logins()">Cancelar</button></div></form>';
  const lf=document.getElementById('lf');
- const full=lf.querySelector('[name="full_name"]'),un=lf.querySelector('[name="username"]'),pw=lf.querySelector('[name="password"]');
+ const full=lf.querySelector('[name="full_name"]'),un=lf.querySelector('[name="username"]');
  un.addEventListener('input',()=>un.dataset.manual='1');
  full.addEventListener('input',()=>{if(!un.dataset.manual)sugerirUsuario()});
  lf.onsubmit=async e=>{
