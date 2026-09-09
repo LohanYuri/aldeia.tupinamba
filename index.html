@@ -166,7 +166,15 @@
   <div class="hero-actions" style="justify-content:center"><button class="btn" type="button" onclick="location.href='adm.html'">🔐 Área Administrativa</button><button class="btn light" type="button" onclick="location.href='filhos.html'">Área dos Filhos</button></div>
 </section>
 </main>
-<footer><b data-footer-name>Aldeia Tupinambá</b><span data-site-footer>Terreiro de Umbanda • Axé, paz e luz</span><span data-footer-legal style="display:none"></span><span> • <span data-year></span></span></footer>
+<footer>
+  <div class="footer-main">
+    <div class="footer-brand"><b data-footer-name>Aldeia Tupinambá</b><span data-site-footer>Terreiro de Umbanda • Axé, paz e luz</span><span data-footer-legal style="display:none"></span><span> • <span data-year></span></span></div>
+    <nav class="footer-private-links" aria-label="Áreas de acesso">
+      <a href="filhos.html">👨‍👩‍👧 Portal dos Filhos</a>
+      <a href="adm.html">🔐 Área Restrita ADM</a>
+    </nav>
+  </div>
+</footer>
 <div id="modal" class="modal" hidden><div class="box" role="dialog" aria-modal="true" aria-label="Convite"><button class="x" type="button" onclick="fechar()" aria-label="Fechar">×</button><div id="content"></div></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="assets/js/supabase-config.js"></script><script src="assets/js/site-data.js"></script><script src="assets/js/app.js"></script>
