@@ -854,7 +854,14 @@ function loginForm(u){
    const role=u.id===me.id?'financeiro':d.role;
    const payload={action:u.id?'update':'create',id:u.id,full_name:d.full_name,username:d.username,role,active:d.active==='on',birth_date:d.birth_date||null,joined_at:d.joined_at||null,house_function:d.house_function||null,child_id:child?.id||null,access_pin:d.access_pin||null};
    const {data,error}=await sb.functions.invoke('admin-users',{body:payload});
-   if(error||data?.error){msg(data?.error||error);return}
+   if(error||data?.error){
+     let detail=data?.error||error?.message||error||'Falha ao salvar o acesso.';
+     try{
+       if(error?.context){const body=await error.context.clone().json();if(body?.error)detail=body.error;}
+     }catch(_){}
+     alert(detail);
+     return;
+   }
    await audit(u.id?'update_login':'create_login','profiles',u.id||data?.id,{username:d.username,role,active:d.active==='on'});
    await loadBase(); if(!u.id && data?.access_pin){alert('ACESSO CRIADO!\n\nUsuário: '+d.username+'\nCódigo de acesso: '+data.access_pin+'\n\nAnote e envie este código em privado. Ele não será exibido novamente.');} else alert('Acesso atualizado com sucesso.'); logins();
  };
