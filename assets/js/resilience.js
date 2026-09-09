@@ -1,5 +1,5 @@
 (() => {
-  const VERSION='2026.09.09-final';
+  const VERSION='2026.09.09-final-r2';
   window.ALDEIA_PORTAL_VERSION=VERSION;
   const draftKey='aldeia_portal_drafts_v1';
   const saveDraft=(form)=>{
@@ -47,5 +47,5 @@
       return {ok:true,steps};
     }catch(e){return {ok:false,steps,error:e.message}};
   };
-  function CACHE_NAME(){return 'aldeia-portal-shell-v1'}
+  function CACHE_NAME(){return 'aldeia-portal-shell-v2'}
 })();
