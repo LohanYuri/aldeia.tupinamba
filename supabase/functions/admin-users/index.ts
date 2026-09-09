@@ -12,13 +12,23 @@ export default {fetch:withSupabase({auth:"user"},async(req,ctx)=>{
  }
  if(body.action==="create"){
   if(body.role==="financeiro")return Response.json({error:"O nível Comandante Geral é exclusivo do acesso atual do Comandante."},{status:403});
-  if(!body.email||!body.password||!body.full_name||!body.role)return Response.json({error:"Nome, e-mail, senha e perfil são obrigatórios."},{status:400});
-  const {data:created,error:createError}=await ctx.supabaseAdmin.auth.admin.createUser({email:body.email.trim().toLowerCase(),password:body.password,email_confirm:true,user_metadata:{full_name:body.full_name}});
+  if(!body.password||!body.full_name||!body.role)return Response.json({error:"Nome, senha e perfil são obrigatórios."},{status:400});
+  let authEmail=(body.email||"").trim().toLowerCase();
+  if(!authEmail){
+    const {data:settings}=await ctx.supabaseAdmin.from("commander_access_settings").select("fixed_email").eq("id",1).maybeSingle();
+    const base=(settings?.fixed_email||"").trim().toLowerCase();
+    if(!base||!base.includes("@"))return Response.json({error:"Configure primeiro o e-mail fixo do terreiro em Acessos e senhas."},{status:400});
+    const local=base.split("@")[0].replace(/[^a-z0-9._-]/gi,"");
+    const domain=base.split("@").slice(1).join("@");
+    const alias=(body.username||body.full_name||"acesso").toLowerCase().replace(/[^a-z0-9]+/g,".").replace(/^\.|\.$/g,"").slice(0,50)||"acesso";
+    authEmail=local+"+"+alias+"@"+domain;
+  }
+  const {data:created,error:createError}=await ctx.supabaseAdmin.auth.admin.createUser({email:authEmail,password:body.password,email_confirm:true,user_metadata:{full_name:body.full_name}});
   if(createError||!created.user)return Response.json({error:createError?.message||"Falha ao criar usuário."},{status:400});
   const {error:profileError}=await ctx.supabaseAdmin.from("profiles").upsert({id:created.user.id,full_name:body.full_name.trim(),username:body.username?.trim()||null,role:body.role,active:body.active!==false});
   if(profileError){await ctx.supabaseAdmin.auth.admin.deleteUser(created.user.id);return Response.json({error:profileError.message},{status:400});}
   if(body.child_id){const {error:childError}=await ctx.supabaseAdmin.from("children").update({profile_id:created.user.id,updated_at:new Date().toISOString()}).eq("id",body.child_id);if(childError){await ctx.supabaseAdmin.from("profiles").delete().eq("id",created.user.id);await ctx.supabaseAdmin.auth.admin.deleteUser(created.user.id);return Response.json({error:childError.message},{status:400});}}
-  await ctx.supabaseAdmin.from("audit_logs").insert({actor_id:callerId,action:"create_user",entity:"profiles",entity_id:created.user.id,details:{email:body.email,username:body.username,role:body.role,full_name:body.full_name,child_id:body.child_id||null}});
+  await ctx.supabaseAdmin.from("audit_logs").insert({actor_id:callerId,action:"create_user",entity:"profiles",entity_id:created.user.id,details:{email:authEmail,username:body.username,role:body.role,full_name:body.full_name,child_id:body.child_id||null}});
   return Response.json({ok:true,id:created.user.id});
  }
  if(!body.id)return Response.json({error:"ID do usuário obrigatório."},{status:400});
