@@ -86,6 +86,16 @@ async function alinharNovaEscala(){
 }
 window.alinharNovaEscala=alinharNovaEscala;
 
+
+async function presencaOnline(){
+ const cutoff=new Date(Date.now()-5*60*1000).toISOString();
+ const [pr,cr]=await Promise.all([sb.from('portal_presence').select('*').gte('last_seen_at',new Date(Date.now()-24*60*60*1000).toISOString()).order('last_seen_at',{ascending:false}),sb.from('children').select('id,full_name,house_role,active').order('full_name')]);
+ if(pr.error){alert(pr.error.message);return}
+ const rows=cr.data||[], pres=pr.data||[];
+ view().innerHTML='<div class="command-dashboard-head"><div><span class="eyebrow">PRESENÇA E ACESSOS</span><h2>🟢 Presença e online</h2><p class="lead">Veja quem está online agora e o último registro de cada acesso.</p></div><button class="btn secondary" onclick="membrosOperacao()">← Voltar</button></div><div class="command-grid"><article class="command-card"><h3>🟢 Online agora</h3><p class="command-stat">'+pres.filter(p=>p.last_seen_at>=cutoff).length+'</p></article><article class="command-card"><h3>👥 Cadastrados</h3><p class="command-stat">'+rows.length+'</p></article></div><div class="command-card"><h3>📋 Presença dos filhos</h3><div class="command-table-wrap"><table class="command-table"><thead><tr><th>Filho</th><th>Cargo</th><th>Presença</th><th>Acesso</th><th>Última atividade</th></tr></thead><tbody>'+rows.map(ch=>{const p=pres.find(x=>x.child_id===ch.id);const online=p&&p.last_seen_at>=cutoff;return '<tr><td><b>'+esc(ch.full_name)+'</b></td><td>'+esc(ch.house_role||'—')+'</td><td>'+(online?'<span class="pill success">🟢 ONLINE</span>':'<span class="pill">⚪ OFFLINE</span>')+'</td><td>'+esc(p?.access_role||ch.house_role||'—')+'</td><td>'+(p?.last_seen_at?new Date(p.last_seen_at).toLocaleString('pt-BR'):'Nunca registrado')+'</td></tr>'}).join('')+'</tbody></table></div></div>';
+}
+window.presencaOnline=presencaOnline;
+
 async function visitasHoje(){
  const start=new Date(); start.setHours(0,0,0,0); const iso=start.toISOString();
  const [vr,cr,ar,nr]=await Promise.all([sb.from('portal_access_events').select('*').gte('event_at',iso).order('event_at',{ascending:false}),sb.from('children').select('id,full_name,house_role,active,profile_id').order('full_name'),sb.from('admin_notices').select('id,title,created_at').eq('published',true).order('created_at',{ascending:false}).limit(30),sb.from('admin_notice_acknowledgements').select('notice_id,profile_id,acknowledged_at')]);
