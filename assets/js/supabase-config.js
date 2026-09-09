@@ -59,3 +59,6 @@ window.ALDEIA_SUPABASE=window.supabase.createClient(window.ALDEIA_SUPABASE_URL,w
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
+
+/* Extensao do modulo de orcamentos e comparacao de compras. */
+(function(){if(!/comandante\.html$/i.test(location.pathname))return;var s=document.createElement('script');s.src='assets/js/orcamentos-avancados.js?v=20260908-1';s.defer=true;document.head.appendChild(s);})();
