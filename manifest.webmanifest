@@ -1,0 +1,10 @@
+{
+  "name":"Aldeia Tupinambá — Portal Oficial",
+  "short_name":"Aldeia Tupinambá",
+  "start_url":"/",
+  "display":"standalone",
+  "background_color":"#050403",
+  "theme_color":"#c99b22",
+  "lang":"pt-BR",
+  "description":"Portal oficial da Aldeia Tupinambá."
+}
