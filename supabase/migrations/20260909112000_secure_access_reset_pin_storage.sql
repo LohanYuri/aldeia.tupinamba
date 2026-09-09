@@ -1,0 +1,1 @@
+alter table public.access_reset_requests drop column if exists new_access_pin;
