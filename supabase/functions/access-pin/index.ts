@@ -43,7 +43,7 @@ Deno.serve(async req=>{
    const pin=randomPin();
    const {error:up}=await sb.from("profiles").update({username,access_pin_hash:await hash(pin),active:true,updated_at:new Date().toISOString()}).eq("id",p.id);
    if(up)return json({error:"Não foi possível gerar o novo acesso: "+up.message},400);
-   await sb.from("access_reset_requests").update({status:"accepted",resolved_at:new Date().toISOString(),resolved_by:actor.id,resolved_username:username,new_access_pin:pin}).eq("id",r.id);
+   await sb.from("access_reset_requests").update({status:"accepted",resolved_at:new Date().toISOString(),resolved_by:actor.id,resolved_username:username}).eq("id",r.id);
    await sb.from("audit_logs").insert({actor_id:actor.id,action:"accept_access_reset",entity:"profiles",entity_id:p.id,details:{old_username:p.username,new_username:username,request_id:r.id,role:p.role}});
    return json({ok:true,full_name:p.full_name,username,access_pin:pin});
   }
