@@ -1,6 +1,21 @@
 (() => {
-  const VERSION='2026.09.09-final-r4';
+  const VERSION='2026.09.11-final-r5';
   window.ALDEIA_PORTAL_VERSION=VERSION;
+
+  // Compatibilidade global: alguns módulos antigos usam dateBR e outros brDate.
+  // Mantemos os dois nomes para evitar que uma tela inteira pare por uma função ausente.
+  const formatDateBR=(value)=>{
+    if(value===null||value===undefined||value==='')return '—';
+    const raw=String(value);
+    const dateOnly=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(dateOnly)return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
+    const d=new Date(value);
+    if(Number.isNaN(d.getTime()))return raw;
+    return d.toLocaleDateString('pt-BR');
+  };
+  window.dateBR=window.dateBR||formatDateBR;
+  window.brDate=window.brDate||formatDateBR;
+
   const draftKey='aldeia_portal_drafts_v1';
   const saveDraft=(form)=>{
     if(!form?.querySelector)return;
@@ -53,7 +68,7 @@
     if(!location.pathname.split('/').pop().match(/^comandante\.html$/))return;
     if(document.querySelector('script[data-aldeia-market-quote]'))return;
     const s=document.createElement('script');
-    s.src='/assets/js/market-quote.js?v=20260909-r4';
+    s.src='/assets/js/market-quote.js?v=20260911-r5';
     s.async=true;
     s.dataset.aldeiaMarketQuote='1';
     s.onerror=()=>{window.__aldeiaLastError={message:'Módulo de cotação de mercado não carregou',at:new Date().toISOString()}};
